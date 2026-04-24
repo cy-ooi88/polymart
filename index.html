@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Up or Down - 5 Minutes</title>
+  <style>
+    :root {
+      --bg: #050b14;
+      --card: #0b131f;
+      --card-soft: #0f1825;
+      --text: #f5f8ff;
+      --muted: #7d8da8;
+      --line: #1c2b42;
+      --accent: #f7a600;
+      --danger: #ff4f52;
+      --up: #55c987;
+      --down: #db3535;
+      --target: #8f7350;
+      --target-bg: #455166;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 520px at 10% -40%, #1b2a45 0%, transparent 58%),
+        radial-gradient(1000px 500px at 100% 0%, #102038 0%, transparent 48%),
+        #040910;
+    }
+
+    .app {
+      width: min(960px, 100%);
+      background: linear-gradient(180deg, #0d1522 0%, #090f19 100%);
+      border: 1px solid #14213a;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 24px 52px rgba(0, 0, 0, 0.48);
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .event-ident {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .asset-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 10px;
+      background: #f7a600;
+      display: grid;
+      place-items: center;
+      color: #ffffff;
+      font-size: 44px;
+      font-weight: 800;
+      transform: skewX(-10deg);
+      box-shadow: inset 0 -8px 16px rgba(0, 0, 0, 0.16);
+      user-select: none;
+    }
+
+    .title-wrap {
+      min-width: 0;
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-sub {
+      margin-top: 4px;
+      color: #8da2c3;
+      font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-slug {
+      display: inline-block;
+      margin-top: 2px;
+      color: #6f819e;
+      font-size: 0.9rem;
+      font-family: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-decoration: none;
+      max-width: 100%;
+    }
+
+    .event-slug:hover {
+      text-decoration: underline;
+      color: #8ea5c6;
+    }
+
+    .timer {
+      display: flex;
+      gap: 16px;
+      padding-top: 6px;
+    }
+
+    .timer-cell {
+      text-align: center;
+      min-width: 48px;
+    }
+
+    .timer-value {
+      color: var(--danger);
+      font-size: clamp(2.1rem, 3.8vw, 2.8rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: 0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timer-unit {
+      margin-top: 4px;
+      color: #8fa0bc;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .metric {
+      padding: 4px 0;
+    }
+
+    .metric-label {
+      color: #7889a5;
+      font-size: 1.95rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .metric-label.current {
+      color: var(--accent);
+    }
+
+    .metric-value {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-value.target {
+      color: #97a4b9;
+    }
+
+    .metric-value.current {
+      color: var(--accent);
+    }
+
+    .target-breakdown {
+      margin-top: 6px;
+      display: grid;
+      gap: 3px;
+      max-width: 420px;
+    }
+
+    .target-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #7d8ea8;
+      font-size: 0.93rem;
+      line-height: 1.25;
+    }
+
+    .target-row strong {
+      color: #bdc7d8;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .price-delta {
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .price-delta.positive {
+      color: var(--up);
+    }
+
+    .price-delta.negative {
+      color: var(--down);
+    }
+
+    .chart-panel {
+      margin-top: 10px;
+      padding: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #122038;
+      background: linear-gradient(180deg, #0b131f 0%, #0a111a 100%);
+    }
+
+    .chart-wrap {
+      width: 100%;
+      height: 336px;
+      position: relative;
+    }
+
+    #priceChart {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: linear-gradient(180deg, #0c1523 0%, #0b121d 100%);
+    }
+
+    .chart-controls {
+      position: absolute;
+      left: 14px;
+      bottom: 10px;
+      background: rgba(16, 26, 38, 0.94);
+      border: 1px solid #1f2f47;
+      border-radius: 14px;
+      padding: 4px;
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .chart-mode {
+      width: 42px;
+      height: 38px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: #7d8ea8;
+      font-weight: 800;
+      font-size: 1.2rem;
+      cursor: default;
+    }
+
+    .chart-mode.active {
+      background: rgba(247, 166, 0, 0.22);
+      color: var(--accent);
+    }
+
+    .target-tag {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      min-width: 106px;
+      height: 30px;
+      border-radius: 14px;
+      padding: 0 14px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #d0d6e0;
+      background: color-mix(in hsl, var(--target-bg) 80%, #6f7d95 20%);
+      border: 1px solid #65728a;
+      pointer-events: none;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .buy-btn {
+      border: 0;
+      border-radius: 12px;
+      height: 58px;
+      font-size: clamp(1.45rem, 2.8vw, 2rem);
+      font-weight: 800;
+      color: #fefefe;
+      letter-spacing: -0.01em;
+      cursor: default;
+      box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.17);
+    }
+
+    .buy-btn.up {
+      background: #4a9f5e;
+    }
+
+    .buy-btn.down {
+      background: #c82c2b;
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 21px;
+      color: #8d9cb7;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #5abf79;
+      flex: none;
+    }
+
+    .dot.warn {
+      background: #d3a53e;
+    }
+
+    .dot.err {
+      background: #ff5a62;
+    }
+
+    @media (max-width: 980px) {
+      .metric-label {
+        font-size: 1.55rem;
+      }
+
+      .metric-value {
+        font-size: clamp(1.7rem, 5vw, 2.6rem);
+      }
+
+      .price-delta {
+        font-size: 1.35rem;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .top-row {
+        flex-direction: column;
+      }
+
+      .timer {
+        margin-left: 94px;
+        padding-top: 0;
+      }
+
+      .chart-wrap {
+        height: 304px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 8px;
+      }
+
+      .app {
+        padding: 12px;
+      }
+
+      .asset-icon {
+        width: 62px;
+        height: 62px;
+        font-size: 34px;
+      }
+
+      .timer {
+        margin-left: 0;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-wrap {
+        height: 280px;
+      }
+
+      .actions {
+        grid-template-columns: 1fr;
+      }
+
+      .buy-btn {
+        height: 54px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top-row">
+      <div class="event-ident">
+        <div class="asset-icon">B</div>
+        <div class="title-wrap">
+          <h1 id="eventTitle" class="event-title">BTC Up or Down - 5 Minutes</h1>
+          <div id="eventSub" class="event-sub">Loading current event...</div>
+          <a id="eventSlug" class="event-slug" href="#" target="_blank" rel="noopener noreferrer">btc-updown-5m-...</a>
+        </div>
+      </div>
+
+      <div class="timer" aria-label="Countdown timer">
+        <div class="timer-cell">
+          <div id="timerMins" class="timer-value">--</div>
+          <div class="timer-unit">MINS</div>
+        </div>
+        <div class="timer-cell">
+          <div id="timerSecs" class="timer-value">--</div>
+          <div class="timer-unit">SECS</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="metric-row">
+      <article class="metric">
+        <div class="metric-label">Price To Beat</div>
+        <div id="priceToBeat" class="metric-value target">$--</div>
+        <div class="target-breakdown">
+          <div class="target-row"><span>Chainlink canonical</span><strong id="canonicalPrice">$--</strong></div>
+          <div class="target-row"><span>Fallback</span><strong id="fallbackPrice">$--</strong></div>
+        </div>
+      </article>
+      <article class="metric">
+        <div class="metric-label current">Current Price <span id="priceDelta" class="price-delta"></span></div>
+        <div id="btcPrice" class="metric-value current">$--</div>
+      </article>
+    </section>
+
+    <section class="chart-panel">
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+        <div class="chart-controls" aria-hidden="true">
+          <button class="chart-mode active" type="button">B</button>
+          <button class="chart-mode" type="button">|||</button>
+        </div>
+        <div id="targetTag" class="target-tag">Target</div>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="buyUpBtn" class="buy-btn up" type="button">Buy Up --</button>
+      <button id="buyDownBtn" class="buy-btn down" type="button">Buy Down --</button>
+    </section>
+
+    <div id="status" class="status"></div>
+  </main>
+
+  <script>
+    const FIVE_MIN_SECONDS = 300;
+    const SLUG_PREFIX = "btc-updown-5m-";
+    const POLYMARKET_RTDS_WS = "wss://ws-live-data.polymarket.com";
+    const MAX_CHART_POINTS = 500;
+
+    const statusEl = document.getElementById("status");
+    const eventTitleEl = document.getElementById("eventTitle");
+    const eventSubEl = document.getElementById("eventSub");
+    const eventSlugEl = document.getElementById("eventSlug");
+    const btcEl = document.getElementById("btcPrice");
+    const priceToBeatEl = document.getElementById("priceToBeat");
+    const canonicalPriceEl = document.getElementById("canonicalPrice");
+    const fallbackPriceEl = document.getElementById("fallbackPrice");
+    const deltaEl = document.getElementById("priceDelta");
+    const minsEl = document.getElementById("timerMins");
+    const secsEl = document.getElementById("timerSecs");
+    const buyUpBtnEl = document.getElementById("buyUpBtn");
+    const buyDownBtnEl = document.getElementById("buyDownBtn");
+    const targetTagEl = document.getElementById("targetTag");
+    const chartEl = document.getElementById("priceChart");
+
+    const state = {
+      currentSlug: null,
+      conditionId: null,
+      upTokenId: null,
+      downTokenId: null,
+      targetPriceCanonical: null,
+      targetPriceFallback: null,
+      targetPriceCanonicalTs: null,
+      targetPriceCanonicalAnchorMs: null,
+      latestPrice: null,
+      upAsk: null,
+      downAsk: null,
+      currentWindowStartSec: null,
+      currentWindowEndSec: null,
+      ws: null,
+      wsPingIntervalId: null,
+      pricePoints: [],
+      chartCtx: null,
+      chartDpr: 1,
+      eventCache: new Map()
+    };
+
+    function setStatus(text, level = "ok") {
+      const dotClass = level === "err" ? "dot err" : level === "warn" ? "dot warn" : "dot";
+      statusEl.innerHTML = `<span class="${dotClass}"></span>${text}`;
+    }
+
+    function formatUsd(n) {
+      if (!Number.isFinite(n)) return "--";
+      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatDelta(n) {
+      if (!Number.isFinite(n)) return "--";
+      return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    function formatShareLabel(sharePrice) {
+      if (!Number.isFinite(sharePrice)) return "--";
+      return `${Math.round(sharePrice * 100)}c`;
+    }
+
+    function updateBuyButtons() {
+      buyUpBtnEl.textContent = `Buy Up ${formatShareLabel(state.upAsk)}`;
+      buyDownBtnEl.textContent = `Buy Down ${formatShareLabel(state.downAsk)}`;
+    }
+
+    function chartTargetPrice() {
+      if (Number.isFinite(state.targetPriceCanonical)) return state.targetPriceCanonical;
+      return Number.isFinite(state.targetPriceFallback) ? state.targetPriceFallback : null;
+    }
+
+    function chartTargetSourceLabel() {
+      if (Number.isFinite(state.targetPriceCanonical)) return "CL";
+      if (Number.isFinite(state.targetPriceFallback)) return "FB";
+      return "";
+    }
+
+    function updateTargetDisplay() {
+      const activeTarget = chartTargetPrice();
+      priceToBeatEl.textContent = Number.isFinite(activeTarget)
+        ? `$${formatUsd(activeTarget)}`
+        : "$--";
+      canonicalPriceEl.textContent = Number.isFinite(state.targetPriceCanonical)
+        ? `$${formatUsd(state.targetPriceCanonical)}`
+        : "$--";
+      fallbackPriceEl.textContent = Number.isFinite(state.targetPriceFallback)
+        ? `$${formatUsd(state.targetPriceFallback)}`
+        : "$--";
+      renderPriceDelta();
+      drawChart();
+    }
+
+    function renderPriceDelta() {
+      const activeTarget = chartTargetPrice();
+      if (!Number.isFinite(state.latestPrice) || !Number.isFinite(activeTarget)) {
+        deltaEl.textContent = "";
+        deltaEl.classList.remove("positive", "negative");
+        return;
+      }
+
+      const diff = state.latestPrice - activeTarget;
+      const direction = diff >= 0 ? "positive" : "negative";
+      const arrow = diff >= 0 ? "+" : "-";
+
+      deltaEl.classList.remove("positive", "negative");
+      deltaEl.classList.add(direction);
+      deltaEl.textContent = `${arrow} $${formatDelta(Math.abs(diff))}`;
+    }
+
+    function etTimeParts(date) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      }).formatToParts(date);
+
+      const out = { hour: "", minute: "", dayPeriod: "" };
+      parts.forEach((part) => {
+        if (part.type === "hour") out.hour = part.value;
+        if (part.type === "minute") out.minute = part.value;
+        if (part.type === "dayPeriod") out.dayPeriod = part.value.toUpperCase();
+      });
+      return out;
+    }
+
+    function formatEventWindowEt(startSec, endSec) {
+      if (!Number.isFinite(startSec) || !Number.isFinite(endSec)) return "Loading current event...";
+
+      const startDate = new Date(startSec * 1000);
+      const endDate = new Date(endSec * 1000);
+      const dateLabel = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        month: "short",
+        day: "numeric"
+      }).format(startDate);
+
+      const start = etTimeParts(startDate);
+      const end = etTimeParts(endDate);
+      return `${dateLabel}, ${start.hour}:${start.minute}-${end.hour}:${end.minute}${end.dayPeriod} ET`;
+    }
+
+    function updateCountdown() {
+      if (!Number.isFinite(state.currentWindowEndSec)) {
+        minsEl.textContent = "--";
+        secsEl.textContent = "--";
+        return;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      const remaining = Math.max(0, state.currentWindowEndSec - now);
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      minsEl.textContent = String(mins).padStart(2, "0");
+      secsEl.textContent = String(secs).padStart(2, "0");
+    }
+
+    function baseTimestampNowSeconds() {
+      return Math.floor(Date.now() / 1000 / FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS;
+    }
+
+    function candidateSlugs() {
+      const base = baseTimestampNowSeconds();
+      const offsets = [0, -FIVE_MIN_SECONDS, FIVE_MIN_SECONDS];
+      return offsets.map((offset) => `${SLUG_PREFIX}${base + offset}`);
+    }
+
+    function parseMaybeArray(value) {
+      if (Array.isArray(value)) return value;
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+
+    function extractJsonFromJinaText(text) {
+      const marker = "Markdown Content:";
+      const idx = text.indexOf(marker);
+      let payload = idx >= 0 ? text.slice(idx + marker.length).trim() : text.trim();
+      if (payload.startsWith("```")) {
+        payload = payload.replace(/^```[a-zA-Z]*\s*/, "").replace(/\s*```$/, "");
+      }
+      return JSON.parse(payload);
+    }
+
+    function unwrapGammaEvent(data) {
+      if (Array.isArray(data) && data.length) return data[0];
+      if (Array.isArray(data?.events) && data.events.length) return data.events[0];
+      if (data && typeof data === "object" && data.slug) return data;
+      return null;
+    }
+
+    async function fetchJson(url, isJinaProxy = false) {
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (isJinaProxy) {
+        const text = await resp.text();
+        return extractJsonFromJinaText(text);
+      }
+      return resp.json();
+    }
+
+    async function fetchGammaEventBySlug(slug) {
+      const cached = state.eventCache.get(slug);
+      if (cached && Date.now() - cached.at < 20_000) return cached.data;
+
+      const encoded = encodeURIComponent(slug);
+      const urls = [
+        { url: `https://r.jina.ai/http://gamma-api.polymarket.com/events/keyset?slug=${encoded}`, jina: true },
+        { url: `https://r.jina.ai/http://gamma-api.polymarket.com/events?slug=${encoded}`, jina: true }
+      ];
+
+      let lastError = null;
+      for (const entry of urls) {
+        try {
+          const raw = await fetchJson(entry.url, entry.jina);
+          const event = unwrapGammaEvent(raw);
+          if (event) {
+            state.eventCache.set(slug, { at: Date.now(), data: event });
+            return event;
+          }
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (lastError) throw lastError;
+      throw new Error(`Gamma fetch failed for ${slug}`);
+    }
+
+    async function fetchTargetPriceBySlug(slug) {
+      const encoded = encodeURIComponent(slug);
+      const urls = [
+        `https://r.jina.ai/http://polymarket.com/event/${encoded}`,
+        `https://r.jina.ai/http://gamma-api.polymarket.com/events/keyset?slug=${encoded}`,
+        `https://r.jina.ai/http://gamma-api.polymarket.com/events?slug=${encoded}`
+      ];
+
+      for (const url of urls) {
+        try {
+          if (url.includes("polymarket.com/event/")) {
+            const resp = await fetch(url, { cache: "no-store" });
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            const textMatch = text.match(/Price To Beat[\s\S]{0,120}?\$([0-9][0-9,]*\.[0-9]+)/i);
+            if (textMatch && textMatch[1]) {
+              const n = Number(textMatch[1].replace(/,/g, ""));
+              if (Number.isFinite(n)) return n;
+            }
+          } else {
+            const raw = await fetchJson(url, true);
+            const event = unwrapGammaEvent(raw);
+            const target = readTargetPrice(event);
+            if (Number.isFinite(target)) return target;
+          }
+        } catch {
+        }
+      }
+
+      return null;
+    }
+
+    function readTargetPrice(eventData) {
+      const candidates = [
+        eventData?.eventMetadata?.priceToBeat,
+        eventData?.eventMetadata?.price_to_beat,
+        eventData?.event_metadata?.priceToBeat,
+        eventData?.event_metadata?.price_to_beat,
+        eventData?.markets?.[0]?.priceToBeat,
+        eventData?.markets?.[0]?.price_to_beat
+      ];
+      for (const candidate of candidates) {
+        const n = Number(candidate);
+        if (Number.isFinite(n)) return n;
+      }
+      return null;
+    }
+
+    function findUpDownTokens(market) {
+      const outcomes = parseMaybeArray(market.outcomes);
+      const tokenIds = parseMaybeArray(market.clobTokenIds);
+      let upTokenId = null;
+      let downTokenId = null;
+
+      outcomes.forEach((outcome, i) => {
+        const label = String(outcome).trim().toLowerCase();
+        if (label === "up") upTokenId = tokenIds[i] || null;
+        if (label === "down") downTokenId = tokenIds[i] || null;
+      });
+
+      return { upTokenId, downTokenId };
+    }
+
+    async function resolveCurrentEvent() {
+      const slugs = candidateSlugs();
+      const found = [];
+
+      for (const slug of slugs) {
+        try {
+          const eventData = await fetchGammaEventBySlug(slug);
+          if (!eventData || !eventData.markets || !eventData.markets.length) continue;
+          const market = eventData.markets[0];
+          const { upTokenId, downTokenId } = findUpDownTokens(market);
+          if (upTokenId && downTokenId) {
+            found.push({ slug, eventData, market, upTokenId, downTokenId });
+          }
+        } catch {
+        }
+      }
+
+      if (!found.length) throw new Error("Could not resolve the current BTC 5m event");
+      const openCandidate = found.find((x) => x.market.acceptingOrders || (!x.market.closed && x.market.active));
+      return openCandidate || found[0];
+    }
+
+    async function fetchBestAsk(tokenId) {
+      const resp = await fetch(`https://clob.polymarket.com/book?token_id=${encodeURIComponent(tokenId)}`, { cache: "no-store" });
+      if (!resp.ok) throw new Error("Failed to fetch orderbook");
+      const data = await resp.json();
+      const asks = Array.isArray(data.asks) ? data.asks : [];
+      if (!asks.length) return null;
+
+      let bestAsk = Number.POSITIVE_INFINITY;
+      asks.forEach((a) => {
+        const p = Number(a.price);
+        if (Number.isFinite(p) && p < bestAsk) bestAsk = p;
+      });
+
+      return Number.isFinite(bestAsk) ? bestAsk : null;
+    }
+
+    async function refreshBuyPrices() {
+      if (!state.upTokenId || !state.downTokenId) return;
+      try {
+        const [upAsk, downAsk] = await Promise.all([
+          fetchBestAsk(state.upTokenId),
+          fetchBestAsk(state.downTokenId)
+        ]);
+        state.upAsk = upAsk;
+        state.downAsk = downAsk;
+        updateBuyButtons();
+        setStatus(`Live. Last updated ${new Date().toLocaleTimeString()}`, "ok");
+      } catch (err) {
+        setStatus(`Price update failed: ${err.message}`, "warn");
+      }
+    }
+
+    function setupChart() {
+      state.chartCtx = chartEl.getContext("2d");
+      resizeChart();
+      window.addEventListener("resize", resizeChart);
+    }
+
+    function resizeChart() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(320, Math.floor(chartEl.clientWidth));
+      const height = Math.max(220, Math.floor(chartEl.clientHeight));
+      chartEl.width = Math.floor(width * dpr);
+      chartEl.height = Math.floor(height * dpr);
+      state.chartDpr = dpr;
+      drawChart();
+    }
+
+    function computeYRange(points, targetPrice) {
+      const values = points.map((pt) => pt.p);
+      if (Number.isFinite(targetPrice)) values.push(targetPrice);
+      if (!values.length) return null;
+
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if (min === max) {
+        const bump = Math.max(Math.abs(min) * 0.0008, 1);
+        min -= bump;
+        max += bump;
+      }
+
+      const currentRef = points.length ? points[points.length - 1].p : targetPrice;
+      const minSpan = Math.max(Math.abs(Number(currentRef) || 0) * 0.0009, 2.5);
+      const span = max - min;
+      if (span < minSpan) {
+        const center = (min + max) / 2;
+        min = center - minSpan / 2;
+        max = center + minSpan / 2;
+      }
+
+      const paddedSpan = max - min;
+      const pad = Math.max(0.6, paddedSpan * 0.12);
+      min -= pad;
+      max += pad;
+
+      if (Number.isFinite(targetPrice)) {
+        if (targetPrice <= min) min = targetPrice - 0.9;
+        if (targetPrice >= max) max = targetPrice + 0.9;
+      }
+
+      return { min, max };
+    }
+
+    function maybeSetCanonicalTarget(timestampMs, price) {
+      if (!Number.isFinite(state.targetPriceCanonicalAnchorMs)) return false;
+      const t = Number(timestampMs);
+      const p = Number(price);
+      if (!Number.isFinite(t) || !Number.isFinite(p)) return false;
+
+      const anchorMs = state.targetPriceCanonicalAnchorMs;
+      if (t < anchorMs) return false;
+
+      const shouldReplace = !Number.isFinite(state.targetPriceCanonicalTs)
+        || t < state.targetPriceCanonicalTs;
+
+      if (!shouldReplace) return false;
+      state.targetPriceCanonical = p;
+      state.targetPriceCanonicalTs = t;
+      return true;
+    }
+
+    function drawChart() {
+      if (!state.chartCtx) return;
+      const ctx = state.chartCtx;
+      const dpr = state.chartDpr || 1;
+      const width = chartEl.width / dpr;
+      const height = chartEl.height / dpr;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const pad = { left: 12, right: 76, top: 12, bottom: 16 };
+      const chartW = width - pad.left - pad.right;
+      const chartH = height - pad.top - pad.bottom;
+      if (chartW <= 0 || chartH <= 0) return;
+
+      const bg = ctx.createLinearGradient(0, 0, 0, height);
+      bg.addColorStop(0, "#0d1728");
+      bg.addColorStop(1, "#0a111b");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      const points = state.pricePoints;
+      const activeTarget = chartTargetPrice();
+      const yRange = computeYRange(points, activeTarget);
+      if (!yRange) {
+        ctx.fillStyle = "#7d8ea8";
+        ctx.font = "600 16px Manrope, Segoe UI, sans-serif";
+        ctx.fillText("Waiting for BTC price updates...", 16, 30);
+        targetTagEl.style.display = "none";
+        return;
+      }
+
+      const fallbackEnd = Number.isFinite(state.currentWindowEndSec) ? state.currentWindowEndSec * 1000 : Date.now();
+      const fallbackStart = Number.isFinite(state.currentWindowStartSec)
+        ? state.currentWindowStartSec * 1000
+        : fallbackEnd - (FIVE_MIN_SECONDS * 1000);
+
+      const tMin = points.length ? Math.min(fallbackStart, points[0].t) : fallbackStart;
+      const tMaxBase = points.length ? Math.max(fallbackEnd, points[points.length - 1].t) : fallbackEnd;
+      const tMax = Math.max(tMin + 1000, tMaxBase);
+      const tSpan = tMax - tMin;
+
+      const xOf = (t) => pad.left + ((t - tMin) / tSpan) * chartW;
+      const yOf = (v) => pad.top + (1 - (v - yRange.min) / (yRange.max - yRange.min)) * chartH;
+
+      ctx.strokeStyle = "#1e2c45";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i += 1) {
+        const y = pad.top + (i / 4) * chartH;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "#7d8ea8";
+      ctx.font = "600 12px Manrope, Segoe UI, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 3; i += 1) {
+        const ratio = i / 3;
+        const value = yRange.max - ratio * (yRange.max - yRange.min);
+        const y = pad.top + ratio * chartH;
+        ctx.fillText(`$${formatUsd(value)}`, width - pad.right + 10, y);
+      }
+
+      if (Number.isFinite(activeTarget)) {
+        const y = yOf(activeTarget);
+        ctx.save();
+        ctx.setLineDash([7, 5]);
+        ctx.strokeStyle = "rgba(170, 126, 70, 0.95)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+        ctx.restore();
+
+        targetTagEl.style.display = "inline-flex";
+        const sourceLabel = chartTargetSourceLabel();
+        targetTagEl.textContent = sourceLabel ? `Target ${sourceLabel}` : "Target";
+        const top = Math.max(6, Math.min(height - 36, y - 14));
+        targetTagEl.style.top = `${top}px`;
+      } else {
+        targetTagEl.style.display = "none";
+      }
+
+      if (points.length >= 2) {
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#f7a600";
+
+        ctx.beginPath();
+        points.forEach((pt, i) => {
+          const x = xOf(pt.t);
+          const y = yOf(pt.p);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        const fill = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+        fill.addColorStop(0, "rgba(247, 166, 0, 0.14)");
+        fill.addColorStop(1, "rgba(247, 166, 0, 0.01)");
+
+        ctx.beginPath();
+        points.forEach((pt, i) => {
+          const x = xOf(pt.t);
+          const y = yOf(pt.p);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        const lastX = xOf(points[points.length - 1].t);
+        const firstX = xOf(points[0].t);
+        ctx.lineTo(lastX, pad.top + chartH);
+        ctx.lineTo(firstX, pad.top + chartH);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+
+        const last = points[points.length - 1];
+        const lx = xOf(last.t);
+        const ly = yOf(last.p);
+        ctx.strokeStyle = "rgba(247, 166, 0, 0.95)";
+        ctx.fillStyle = "rgba(247, 166, 0, 0.22)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3.4, 0, Math.PI * 2);
+        ctx.fillStyle = "#f7a600";
+        ctx.fill();
+      } else if (points.length === 1) {
+        const x = xOf(points[0].t);
+        const y = yOf(points[0].p);
+        ctx.fillStyle = "#f7a600";
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function addPricePoint(timestampMs, price) {
+      const rawT = Number.isFinite(timestampMs) ? timestampMs : Date.now();
+      const t = rawT < 1e12 ? rawT * 1000 : rawT;
+      const p = Number(price);
+      if (!Number.isFinite(t) || !Number.isFinite(p)) return;
+
+      const last = state.pricePoints[state.pricePoints.length - 1];
+      if (last && t <= last.t + 150) {
+        last.t = Math.max(last.t, t);
+        last.p = p;
+      } else {
+        state.pricePoints.push({ t, p });
+      }
+
+      if (state.pricePoints.length > MAX_CHART_POINTS) {
+        state.pricePoints = state.pricePoints.slice(state.pricePoints.length - MAX_CHART_POINTS);
+      }
+
+      state.latestPrice = p;
+      btcEl.textContent = `$${formatUsd(p)}`;
+      const canonicalChanged = maybeSetCanonicalTarget(t, p);
+      if (canonicalChanged) {
+        updateTargetDisplay();
+      } else {
+        renderPriceDelta();
+        drawChart();
+      }
+    }
+
+    function connectBtcWebSocket() {
+      if (state.ws) state.ws.close();
+      if (state.wsPingIntervalId) {
+        clearInterval(state.wsPingIntervalId);
+        state.wsPingIntervalId = null;
+      }
+
+      const ws = new WebSocket(POLYMARKET_RTDS_WS);
+      state.ws = ws;
+
+      ws.onopen = () => {
+        if (ws !== state.ws) return;
+        ws.send(JSON.stringify({
+          action: "subscribe",
+          subscriptions: [
+            {
+              topic: "crypto_prices_chainlink",
+              type: "*",
+              filters: JSON.stringify({ symbol: "btc/usd" })
+            },
+            {
+              topic: "crypto_prices",
+              type: "*",
+              filters: JSON.stringify({ symbol: "btc/usd" })
+            }
+          ]
+        }));
+
+        state.wsPingIntervalId = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send("PING");
+        }, 5000);
+        setStatus("Connected. Streaming BTC/USD from Polymarket RTDS.", "ok");
+      };
+
+      ws.onmessage = (evt) => {
+        if (ws !== state.ws) return;
+        if (typeof evt.data !== "string" || evt.data === "PING" || evt.data === "PONG") return;
+
+        try {
+          const data = JSON.parse(evt.data);
+          const topic = String(data.topic || "").toLowerCase();
+          const symbol = String(data.payload?.symbol || "").toLowerCase();
+          const isChainlinkUpdate = topic === "crypto_prices_chainlink" && symbol === "btc/usd";
+          const isChainlinkSnapshot = topic === "crypto_prices" && symbol === "btc/usd";
+          if (!isChainlinkUpdate && !isChainlinkSnapshot) return;
+
+          const px = Number(data.payload?.value);
+          const ts = Number(data.payload?.timestamp || Date.now());
+          if (Number.isFinite(px)) {
+            addPricePoint(ts, px);
+            return;
+          }
+
+          const snapshot = Array.isArray(data.payload?.data) ? data.payload.data : [];
+          if (snapshot.length) {
+            snapshot.forEach((pt) => {
+              const p = Number(pt?.value);
+              const t = Number(pt?.timestamp);
+              if (Number.isFinite(p)) addPricePoint(t, p);
+            });
+          }
+        } catch {
+        }
+      };
+
+      ws.onerror = () => {
+        if (ws !== state.ws) return;
+        setStatus("Polymarket BTC websocket error. Reconnecting...", "warn");
+      };
+
+      ws.onclose = () => {
+        if (ws !== state.ws) return;
+        if (state.wsPingIntervalId) {
+          clearInterval(state.wsPingIntervalId);
+          state.wsPingIntervalId = null;
+        }
+        setStatus("Polymarket BTC websocket closed. Reconnecting...", "warn");
+        setTimeout(connectBtcWebSocket, 1200);
+      };
+    }
+
+    async function loadEventAndStart() {
+      setStatus("Resolving current BTC 5m event...", "warn");
+      const resolved = await resolveCurrentEvent();
+
+      state.currentSlug = resolved.slug;
+      state.conditionId = resolved.market.conditionId || resolved.market.condition_id || null;
+      state.upTokenId = resolved.upTokenId;
+      state.downTokenId = resolved.downTokenId;
+
+      const startTs = Number(resolved.slug.split("-").pop());
+      const endTs = Number.isFinite(startTs) ? startTs + FIVE_MIN_SECONDS : null;
+      const canonicalAnchorMs = Number.isFinite(startTs) ? startTs * 1000 : null;
+
+      state.currentWindowStartSec = startTs;
+      state.currentWindowEndSec = endTs;
+      state.targetPriceCanonical = null;
+      state.targetPriceCanonicalTs = null;
+      state.targetPriceCanonicalAnchorMs = canonicalAnchorMs;
+      state.targetPriceFallback = readTargetPrice(resolved.eventData);
+      state.latestPrice = null;
+      state.upAsk = null;
+      state.downAsk = null;
+      state.pricePoints = [];
+
+      eventTitleEl.textContent = String(resolved.eventData?.title || "BTC Up or Down - 5 Minutes");
+      eventSubEl.textContent = formatEventWindowEt(startTs, endTs);
+      eventSlugEl.textContent = state.currentSlug || "btc-updown-5m-...";
+      eventSlugEl.href = state.currentSlug
+        ? `https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(state.currentSlug)}`
+        : "#";
+      btcEl.textContent = "$--";
+      updateBuyButtons();
+      updateTargetDisplay();
+      updateCountdown();
+
+      if (state.currentSlug) {
+        fetchTargetPriceBySlug(state.currentSlug).then((target) => {
+          if (!Number.isFinite(target)) return;
+          if (state.currentSlug !== resolved.slug) return;
+          state.targetPriceFallback = target;
+          updateTargetDisplay();
+        });
+      }
+
+      await refreshBuyPrices();
+      connectBtcWebSocket();
+    }
+
+    async function maybeRollEvent() {
+      const expected = `${SLUG_PREFIX}${baseTimestampNowSeconds()}`;
+      if (expected !== state.currentSlug) {
+        await loadEventAndStart();
+      }
+    }
+
+    (async () => {
+      try {
+        setupChart();
+        updateBuyButtons();
+        await loadEventAndStart();
+        setInterval(refreshBuyPrices, 2500);
+        setInterval(maybeRollEvent, 5000);
+        setInterval(updateCountdown, 1000);
+      } catch (err) {
+        setStatus(`Startup failed: ${err.message}`, "err");
+      }
+    })();
+  </script>
+</body>
+</html>
+
