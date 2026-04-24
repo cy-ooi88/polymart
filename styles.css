@@ -1,0 +1,408 @@
+:root {
+      --bg: #050b14;
+      --card: #0b131f;
+      --card-soft: #0f1825;
+      --text: #f5f8ff;
+      --muted: #7d8da8;
+      --line: #1c2b42;
+      --accent: #f7a600;
+      --danger: #ff4f52;
+      --up: #55c987;
+      --down: #db3535;
+      --target: #8f7350;
+      --target-bg: #455166;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      font-family: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 520px at 10% -40%, #1b2a45 0%, transparent 58%),
+        radial-gradient(1000px 500px at 100% 0%, #102038 0%, transparent 48%),
+        #040910;
+    }
+
+    .app {
+      width: min(960px, 100%);
+      background: linear-gradient(180deg, #0d1522 0%, #090f19 100%);
+      border: 1px solid #14213a;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 24px 52px rgba(0, 0, 0, 0.48);
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .event-ident {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .asset-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 10px;
+      background: #f7a600;
+      display: grid;
+      place-items: center;
+      color: #ffffff;
+      font-size: 44px;
+      font-weight: 800;
+      transform: skewX(-10deg);
+      box-shadow: inset 0 -8px 16px rgba(0, 0, 0, 0.16);
+      user-select: none;
+    }
+
+    .title-wrap {
+      min-width: 0;
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-sub {
+      margin-top: 4px;
+      color: #8da2c3;
+      font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-slug {
+      display: inline-block;
+      margin-top: 2px;
+      color: #6f819e;
+      font-size: 0.9rem;
+      font-family: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-decoration: none;
+      max-width: 100%;
+    }
+
+    .event-slug:hover {
+      text-decoration: underline;
+      color: #8ea5c6;
+    }
+
+    .timer {
+      display: flex;
+      gap: 16px;
+      padding-top: 6px;
+    }
+
+    .timer-cell {
+      text-align: center;
+      min-width: 48px;
+    }
+
+    .timer-value {
+      color: var(--danger);
+      font-size: clamp(2.1rem, 3.8vw, 2.8rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: 0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timer-unit {
+      margin-top: 4px;
+      color: #8fa0bc;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .metric {
+      padding: 4px 0;
+    }
+
+    .metric-label {
+      color: #7889a5;
+      font-size: 1.95rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .metric-label.current {
+      color: var(--accent);
+    }
+
+    .metric-value {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-value.target {
+      color: #97a4b9;
+    }
+
+    .metric-value.current {
+      color: var(--accent);
+    }
+
+    .target-breakdown {
+      margin-top: 6px;
+      display: grid;
+      gap: 3px;
+      max-width: 420px;
+    }
+
+    .target-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #7d8ea8;
+      font-size: 0.93rem;
+      line-height: 1.25;
+    }
+
+    .target-row strong {
+      color: #bdc7d8;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .price-delta {
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .price-delta.positive {
+      color: var(--up);
+    }
+
+    .price-delta.negative {
+      color: var(--down);
+    }
+
+    .chart-panel {
+      margin-top: 10px;
+      padding: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #122038;
+      background: linear-gradient(180deg, #0b131f 0%, #0a111a 100%);
+    }
+
+    .chart-wrap {
+      width: 100%;
+      height: 336px;
+      position: relative;
+    }
+
+    #priceChart {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: linear-gradient(180deg, #0c1523 0%, #0b121d 100%);
+    }
+
+    .chart-controls {
+      position: absolute;
+      left: 14px;
+      bottom: 10px;
+      background: rgba(16, 26, 38, 0.94);
+      border: 1px solid #1f2f47;
+      border-radius: 14px;
+      padding: 4px;
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .chart-mode {
+      width: 42px;
+      height: 38px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: #7d8ea8;
+      font-weight: 800;
+      font-size: 1.2rem;
+      cursor: default;
+    }
+
+    .chart-mode.active {
+      background: rgba(247, 166, 0, 0.22);
+      color: var(--accent);
+    }
+
+    .target-tag {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      min-width: 106px;
+      height: 30px;
+      border-radius: 14px;
+      padding: 0 14px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #d0d6e0;
+      background: color-mix(in hsl, var(--target-bg) 80%, #6f7d95 20%);
+      border: 1px solid #65728a;
+      pointer-events: none;
+    }
+
+    .actions {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .buy-btn {
+      border: 0;
+      border-radius: 12px;
+      height: 58px;
+      font-size: clamp(1.45rem, 2.8vw, 2rem);
+      font-weight: 800;
+      color: #fefefe;
+      letter-spacing: -0.01em;
+      cursor: default;
+      box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.17);
+    }
+
+    .buy-btn.up {
+      background: #4a9f5e;
+    }
+
+    .buy-btn.down {
+      background: #c82c2b;
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 21px;
+      color: #8d9cb7;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #5abf79;
+      flex: none;
+    }
+
+    .dot.warn {
+      background: #d3a53e;
+    }
+
+    .dot.err {
+      background: #ff5a62;
+    }
+
+    @media (max-width: 980px) {
+      .metric-label {
+        font-size: 1.55rem;
+      }
+
+      .metric-value {
+        font-size: clamp(1.7rem, 5vw, 2.6rem);
+      }
+
+      .price-delta {
+        font-size: 1.35rem;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .top-row {
+        flex-direction: column;
+      }
+
+      .timer {
+        margin-left: 94px;
+        padding-top: 0;
+      }
+
+      .chart-wrap {
+        height: 304px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 8px;
+      }
+
+      .app {
+        padding: 12px;
+      }
+
+      .asset-icon {
+        width: 62px;
+        height: 62px;
+        font-size: 34px;
+      }
+
+      .timer {
+        margin-left: 0;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-wrap {
+        height: 280px;
+      }
+
+      .actions {
+        grid-template-columns: 1fr;
+      }
+
+      .buy-btn {
+        height: 54px;
+      }
+    }
