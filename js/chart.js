@@ -1,4 +1,5 @@
 import { FIVE_MIN_SECONDS, MAX_CHART_POINTS } from "./constants.js";
+import { logPriceTick } from "./data-logger.js";
 import { dom } from "./dom.js";
 import { formatDelta, formatUsd } from "./formatters.js";
 import { state } from "./state.js";
@@ -276,6 +277,7 @@ export function addPricePoint(timestampMs, price) {
   }
 
   state.latestPrice = p;
+  logPriceTick("current_price", p, t);
   dom.btcEl.textContent = `$${formatUsd(p)}`;
   const canonicalChanged = maybeSetCanonicalTarget(t, p);
   if (canonicalChanged) {

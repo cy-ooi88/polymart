@@ -61,6 +61,17 @@
       <button id="buyDownBtn" class="buy-btn down" type="button">Buy Down --</button>
     </section>
 
+    <section class="logging-controls" aria-label="Data logging controls">
+      <label class="log-toggle" for="logToggle">
+        <input id="logToggle" type="checkbox" />
+        <span>Enable data logging</span>
+      </label>
+      <div class="log-downloads">
+        <button id="downloadEventListBtn" class="log-btn" type="button" disabled>Download event_list.csv</button>
+        <button id="downloadPriceFeedBtn" class="log-btn" type="button" disabled>Download price_feed_timeseries.csv</button>
+      </div>
+    </section>
+
     <div id="status" class="status"></div>
   </main>
 

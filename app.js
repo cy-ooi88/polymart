@@ -1,6 +1,7 @@
 import { connectBuyPriceWebSocket, refreshBuyPrices, updateBuyButtons } from "./js/buy-prices.js";
 import { setupChart, updateTargetDisplay } from "./js/chart.js";
 import { FIVE_MIN_SECONDS, SLUG_PREFIX } from "./js/constants.js";
+import { initDataLogger, setDataLoggerEventContext } from "./js/data-logger.js";
 import { dom } from "./js/dom.js";
 import { fetchTargetPriceBySlug, readTargetPrice, resolveCurrentEvent } from "./js/event-api.js";
 import { formatEventWindowEt, formatUsd } from "./js/formatters.js";
@@ -8,6 +9,11 @@ import { state } from "./js/state.js";
 import { setStatus } from "./js/status.js";
 import { baseTimestampNowSeconds, updateCountdown } from "./js/time.js";
 import { connectBtcWebSocket } from "./js/btc-stream.js";
+
+function resolveEventUuid(resolved) {
+  const eventUuid = resolved?.eventData?.id ?? resolved?.market?.id ?? resolved?.slug;
+  return String(eventUuid || "n/a");
+}
 
 async function loadEventAndStart() {
   setStatus("Resolving current BTC 5m event...", "warn");
@@ -21,6 +27,7 @@ async function loadEventAndStart() {
   const startTs = Number(resolved.slug.split("-").pop());
   const endTs = Number.isFinite(startTs) ? startTs + FIVE_MIN_SECONDS : null;
   const canonicalAnchorMs = Number.isFinite(startTs) ? startTs * 1000 : null;
+  const eventUuid = resolveEventUuid(resolved);
 
   state.currentWindowStartSec = startTs;
   state.currentWindowEndSec = endTs;
@@ -32,6 +39,12 @@ async function loadEventAndStart() {
   state.upAsk = null;
   state.downAsk = null;
   state.pricePoints = [];
+
+  setDataLoggerEventContext({
+    slug: resolved.slug,
+    startSec: startTs,
+    eventUuid
+  });
 
   dom.eventTitleEl.textContent = String(resolved.eventData?.title || "BTC Up or Down - 5 Minutes");
   dom.eventSubEl.textContent = formatEventWindowEt(startTs, endTs);
@@ -67,6 +80,7 @@ async function maybeRollEvent() {
 
 (async () => {
   try {
+    initDataLogger();
     setupChart();
     updateBuyButtons();
     await loadEventAndStart();

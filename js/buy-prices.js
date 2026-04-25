@@ -1,4 +1,5 @@
 import { POLYMARKET_CLOB_MARKET_WS } from "./constants.js";
+import { logPriceTick } from "./data-logger.js";
 import { dom } from "./dom.js";
 import { formatShareLabel } from "./formatters.js";
 import { state } from "./state.js";
@@ -35,6 +36,8 @@ export async function refreshBuyPrices() {
     state.upAsk = upAsk;
     state.downAsk = downAsk;
     updateBuyButtons();
+    logPriceTick("buy_up", upAsk);
+    logPriceTick("buy_down", downAsk);
   } catch (err) {
     setStatus(`Price update failed: ${err.message}`, "warn");
   }
@@ -56,11 +59,13 @@ function applyBestAsk(assetId, bestAsk) {
   if (String(assetId) === String(state.upTokenId)) {
     state.upAsk = bestAsk;
     updateBuyButtons();
+    logPriceTick("buy_up", bestAsk);
     return;
   }
   if (String(assetId) === String(state.downTokenId)) {
     state.downAsk = bestAsk;
     updateBuyButtons();
+    logPriceTick("buy_down", bestAsk);
   }
 }
 

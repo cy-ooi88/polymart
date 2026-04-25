@@ -12,6 +12,9 @@ export const dom = {
   secsEl: document.getElementById("timerSecs"),
   buyUpBtnEl: document.getElementById("buyUpBtn"),
   buyDownBtnEl: document.getElementById("buyDownBtn"),
+  logToggleEl: document.getElementById("logToggle"),
+  downloadEventListBtnEl: document.getElementById("downloadEventListBtn"),
+  downloadPriceFeedBtnEl: document.getElementById("downloadPriceFeedBtn"),
   targetTagEl: document.getElementById("targetTag"),
   chartEl: document.getElementById("priceChart")
 };

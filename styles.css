@@ -296,6 +296,63 @@
       gap: 14px;
     }
 
+    .logging-controls {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #1a2a42;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #0b131f 0%, #0a121d 100%);
+      display: grid;
+      gap: 10px;
+    }
+
+    .log-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      color: #a9b8d0;
+      font-weight: 700;
+      font-size: 0.98rem;
+      user-select: none;
+    }
+
+    .log-toggle input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: #2fca79;
+    }
+
+    .log-downloads {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .log-btn {
+      border: 1px solid #2a4062;
+      border-radius: 10px;
+      height: 42px;
+      padding: 0 14px;
+      color: #d9e1ee;
+      background: #142338;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: background-color 120ms ease;
+    }
+
+    .log-btn:hover:enabled {
+      background: #1b3150;
+    }
+
+    .log-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
     .buy-btn {
       border: 0;
       border-radius: 12px;
@@ -399,6 +456,10 @@
       }
 
       .actions {
+        grid-template-columns: 1fr;
+      }
+
+      .log-downloads {
         grid-template-columns: 1fr;
       }
 
