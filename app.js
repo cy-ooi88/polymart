@@ -48,9 +48,11 @@ async function loadEventAndStart() {
 
   dom.eventTitleEl.textContent = String(resolved.eventData?.title || "BTC Up or Down - 5 Minutes");
   dom.eventSubEl.textContent = formatEventWindowEt(startTs, endTs);
-  dom.eventSlugEl.textContent = state.currentSlug || "btc-updown-5m-...";
   dom.eventSlugEl.href = state.currentSlug
     ? `https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(state.currentSlug)}`
+    : "#";
+  dom.liveResultLinkEl.href = state.currentSlug
+    ? `https://polymarket.com/event/${encodeURIComponent(state.currentSlug)}`
     : "#";
   dom.btcEl.textContent = `$${formatUsd(state.latestPrice)}`;
   updateBuyButtons();

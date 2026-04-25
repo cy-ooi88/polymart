@@ -106,6 +106,14 @@
       max-width: 100%;
     }
 
+    .event-links {
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
     .event-slug:hover {
       text-decoration: underline;
       color: #8ea5c6;

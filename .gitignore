@@ -1,0 +1,3 @@
+scripts/events_*.csv
+scripts/price_data_*.csv
+node_modules/

@@ -3,6 +3,7 @@ export const dom = {
   eventTitleEl: document.getElementById("eventTitle"),
   eventSubEl: document.getElementById("eventSub"),
   eventSlugEl: document.getElementById("eventSlug"),
+  liveResultLinkEl: document.getElementById("liveResultLink"),
   btcEl: document.getElementById("btcPrice"),
   priceToBeatEl: document.getElementById("priceToBeat"),
   canonicalPriceEl: document.getElementById("canonicalPrice"),
