@@ -10,6 +10,21 @@ import { setStatus } from "./js/status.js";
 import { baseTimestampNowSeconds, updateCountdown } from "./js/time.js";
 import { connectBtcWebSocket } from "./js/btc-stream.js";
 
+function buildGammaEventUrl(slug) {
+  if (!slug) return "https://gamma-api.polymarket.com/events";
+  return `https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(slug)}`;
+}
+
+function buildLiveResultUrl(slug) {
+  if (!slug) return "https://polymarket.com/markets";
+  return `https://polymarket.com/event/${encodeURIComponent(slug)}`;
+}
+
+function updateExternalLinks(slug) {
+  dom.eventSlugEl.href = buildGammaEventUrl(slug);
+  dom.liveResultLinkEl.href = buildLiveResultUrl(slug);
+}
+
 function resolveEventUuid(resolved) {
   const eventUuid = resolved?.eventData?.id ?? resolved?.market?.id ?? resolved?.slug;
   return String(eventUuid || "n/a");
@@ -48,12 +63,7 @@ async function loadEventAndStart() {
 
   dom.eventTitleEl.textContent = String(resolved.eventData?.title || "BTC Up or Down - 5 Minutes");
   dom.eventSubEl.textContent = formatEventWindowEt(startTs, endTs);
-  dom.eventSlugEl.href = state.currentSlug
-    ? `https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(state.currentSlug)}`
-    : "#";
-  dom.liveResultLinkEl.href = state.currentSlug
-    ? `https://polymarket.com/event/${encodeURIComponent(state.currentSlug)}`
-    : "#";
+  updateExternalLinks(state.currentSlug);
   dom.btcEl.textContent = `$${formatUsd(state.latestPrice)}`;
   updateBuyButtons();
   updateTargetDisplay();
@@ -81,6 +91,7 @@ async function maybeRollEvent() {
 }
 
 (async () => {
+  updateExternalLinks(`${SLUG_PREFIX}${baseTimestampNowSeconds()}`);
   try {
     initDataLogger();
     setupChart();
