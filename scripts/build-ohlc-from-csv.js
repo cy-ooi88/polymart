@@ -148,6 +148,83 @@ function parseNumeric(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function sanitizeEvents(eventRows) {
+  const eventMap = new Map();
+  for (const evt of eventRows) {
+    const id = String(evt.event_uuid || "").trim();
+    if (!id) continue;
+
+    if (!eventMap.has(id)) {
+      eventMap.set(id, evt);
+    }
+  }
+
+  return eventMap;
+}
+
+function sanitizePriceRows(priceRows, eventMap) {
+  const deduped = [];
+  const seen = new Set();
+
+  for (const row of priceRows) {
+    const eventUuid = String(row.event_uuid || "").trim();
+    if (!eventUuid || !eventMap.has(eventUuid)) continue;
+
+    const ts = parseIsoMs(row.timestamp);
+    if (!Number.isFinite(ts)) continue;
+
+    const px = parseNumeric(row.current_price);
+    if (!Number.isFinite(px)) continue;
+
+    const key = `${eventUuid}|${ts}|${px}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    deduped.push({
+      ...row,
+      event_uuid: eventUuid,
+      _timestamp_ms: ts,
+      _current_price: px
+    });
+  }
+
+  return deduped;
+}
+
+function candlePriority(candle) {
+  const bucketMs = parseIsoMs(candle.bucket_start);
+  const eventMs = parseIsoMs(candle.event_timestamp);
+  const distance = Number.isFinite(bucketMs) && Number.isFinite(eventMs) ? Math.abs(bucketMs - eventMs) : Number.POSITIVE_INFINITY;
+  const samples = Number(candle.samples) || 0;
+  return { distance, samples, eventMs: Number.isFinite(eventMs) ? eventMs : -1 };
+}
+
+function pickPreferredCandle(current, candidate) {
+  const a = candlePriority(current);
+  const b = candlePriority(candidate);
+
+  if (b.distance !== a.distance) return b.distance < a.distance ? candidate : current;
+  if (b.samples !== a.samples) return b.samples > a.samples ? candidate : current;
+  if (b.eventMs !== a.eventMs) return b.eventMs > a.eventMs ? candidate : current;
+  return candidate;
+}
+
+function dedupeCandles(candles) {
+  const byBucket = new Map();
+
+  for (const candle of candles) {
+    const key = candle.bucket_start;
+    if (!byBucket.has(key)) {
+      byBucket.set(key, candle);
+      continue;
+    }
+
+    byBucket.set(key, pickPreferredCandle(byBucket.get(key), candle));
+  }
+
+  return Array.from(byBucket.values()).sort((a, b) => a.bucket_start.localeCompare(b.bucket_start));
+}
+
 function discoverPairs(baseDir) {
   const names = fs.readdirSync(baseDir);
   const pairs = [];
@@ -176,14 +253,9 @@ function aggregateOhlc(priceRows, eventMap, intervalSec) {
   const buckets = new Map();
 
   for (const row of priceRows) {
-    const eventUuid = String(row.event_uuid || "").trim();
-    if (!eventUuid || !eventMap.has(eventUuid)) continue;
-
-    const ts = parseIsoMs(row.timestamp);
-    if (!Number.isFinite(ts)) continue;
-
-    const px = parseNumeric(row.current_price);
-    if (!Number.isFinite(px)) continue;
+    const eventUuid = row.event_uuid;
+    const ts = row._timestamp_ms;
+    const px = row._current_price;
 
     const bucketStart = Math.floor(ts / intervalMs) * intervalMs;
     const key = `${eventUuid}|${bucketStart}`;
@@ -223,12 +295,8 @@ function aggregateOhlc(priceRows, eventMap, intervalSec) {
     candle.samples += 1;
   }
 
-  return Array.from(buckets.values())
-    .sort((a, b) => {
-      if (a.event_uuid !== b.event_uuid) return a.event_uuid.localeCompare(b.event_uuid);
-      return a.bucket_start.localeCompare(b.bucket_start);
-    })
-    .map((c) => ({
+  return dedupeCandles(
+    Array.from(buckets.values()).map((c) => ({
       event_uuid: c.event_uuid,
       event_slug: c.event_slug,
       event_timestamp: c.event_timestamp,
@@ -239,7 +307,8 @@ function aggregateOhlc(priceRows, eventMap, intervalSec) {
       low: c.low,
       close: c.close,
       samples: c.samples
-    }));
+    }))
+  );
 }
 
 function processPair(pair, intervals, outDir) {
@@ -249,19 +318,15 @@ function processPair(pair, intervals, outDir) {
   const eventRows = parseCsv(eventsText);
   const priceRows = parseCsv(pricesText);
 
-  const eventMap = new Map();
-  for (const evt of eventRows) {
-    const id = String(evt.event_uuid || "").trim();
-    if (!id) continue;
-    eventMap.set(id, evt);
-  }
+  const eventMap = sanitizeEvents(eventRows);
+  const sanitizedPriceRows = sanitizePriceRows(priceRows, eventMap);
 
   if (!eventMap.size) {
     console.warn(`[skip] No event_uuid rows in ${path.basename(pair.eventsPath)}`);
     return;
   }
 
-  if (!priceRows.length) {
+  if (!sanitizedPriceRows.length) {
     console.warn(`[skip] No price rows in ${path.basename(pair.pricesPath)}`);
     return;
   }
@@ -280,7 +345,7 @@ function processPair(pair, intervals, outDir) {
   ];
 
   for (const intervalSec of intervals) {
-    const candles = aggregateOhlc(priceRows, eventMap, intervalSec);
+    const candles = aggregateOhlc(sanitizedPriceRows, eventMap, intervalSec);
     const outPath = path.join(outDir, `ohlc_${intervalSec}s_${pair.suffix}.csv`);
     writeCsv(outPath, headers, candles);
     console.log(`[ok] ${path.basename(outPath)} (${candles.length} rows)`);

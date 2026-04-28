@@ -75,6 +75,7 @@
       padding: 14px;
       height: 72vh;
       min-height: 420px;
+      position: relative;
     }
 
     canvas {
@@ -89,6 +90,29 @@
       padding: 0 16px 16px;
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .tooltip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      min-width: 210px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #d9cfbe;
+      background: rgba(255, 250, 242, 0.98);
+      box-shadow: 0 8px 22px rgba(39, 28, 14, 0.2);
+      color: #1f2a37;
+      font-size: 12px;
+      line-height: 1.35;
+      z-index: 5;
+      white-space: nowrap;
+    }
+
+    .tooltip .ts {
+      color: #314d7a;
+      margin-bottom: 4px;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -107,6 +131,7 @@
     </section>
     <section class="chart-wrap">
       <canvas id="chart"></canvas>
+      <div id="tooltip" class="tooltip"></div>
     </section>
     <div class="hint">OHLC file columns: <code>bucket_start, open, high, low, close</code>. Events file columns: <code>event_timestamp, price_to_beat_canonical, price_to_beat_fallback</code>.</div>
   </main>
@@ -120,9 +145,12 @@
     const rangeInfo = document.getElementById("rangeInfo");
     const priceInfo = document.getElementById("priceInfo");
     const eventsInfo = document.getElementById("eventsInfo");
+    const tooltip = document.getElementById("tooltip");
 
     let candles = [];
     let events = [];
+    let lastLayout = null;
+    let lastHits = [];
 
     function fitCanvas() {
       const dpr = window.devicePixelRatio || 1;
@@ -287,10 +315,45 @@
       return windows;
     }
 
+    function hideTooltip() {
+      tooltip.style.display = "none";
+    }
+
+    function showTooltip(candle, mouseX, mouseY) {
+      const ts = new Date(candle.t).toISOString();
+      tooltip.innerHTML = `
+        <div class="ts">${ts}</div>
+        <div>O: ${fmtPrice(candle.o)}</div>
+        <div>H: ${fmtPrice(candle.h)}</div>
+        <div>L: ${fmtPrice(candle.l)}</div>
+        <div>C: ${fmtPrice(candle.c)}</div>
+      `;
+      tooltip.style.display = "block";
+
+      const wrap = canvas.parentElement.getBoundingClientRect();
+      const tip = tooltip.getBoundingClientRect();
+      const pad = 12;
+
+      let left = mouseX + pad;
+      let top = mouseY + pad;
+
+      if (left + tip.width > wrap.width - 6) {
+        left = mouseX - tip.width - pad;
+      }
+      if (top + tip.height > wrap.height - 6) {
+        top = mouseY - tip.height - pad;
+      }
+
+      tooltip.style.left = `${Math.max(6, left)}px`;
+      tooltip.style.top = `${Math.max(6, top)}px`;
+    }
+
     function draw() {
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
+      lastHits = [];
+      lastLayout = null;
 
       if (!candles.length) {
         ctx.fillStyle = "#5c6776";
@@ -335,6 +398,7 @@
       const n = candles.length;
       const step = plotW / Math.max(1, n);
       const bodyW = Math.max(2, Math.min(18, step * 0.65));
+      const hits = [];
 
       for (let i = 0; i < n; i++) {
         const c = candles[i];
@@ -356,6 +420,14 @@
         const top = Math.min(yo, yc);
         const bh = Math.max(1, Math.abs(yc - yo));
         ctx.fillRect(x - bodyW / 2, top, bodyW, bh);
+
+        hits.push({
+          i,
+          x,
+          yTop: Math.min(yh, yl),
+          yBottom: Math.max(yh, yl),
+          halfW: Math.max(4, Math.max(bodyW / 2, step * 0.45))
+        });
       }
 
       const minT = candles[0].t;
@@ -412,7 +484,50 @@
       priceInfo.textContent = `Price: ${fmtPrice(minP)} - ${fmtPrice(maxP)}`;
       rowsInfo.textContent = `Rows: ${candles.length}`;
       eventsInfo.textContent = `Events: ${events.length}`;
+      lastLayout = { pad, w, h };
+      lastHits = hits;
     }
+
+    canvas.addEventListener("mouseleave", () => {
+      hideTooltip();
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!candles.length || !lastLayout || !lastHits.length) {
+        hideTooltip();
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const { pad, w, h } = lastLayout;
+
+      if (x < pad.left || x > (w - pad.right) || y < pad.top || y > (h - pad.bottom)) {
+        hideTooltip();
+        return;
+      }
+
+      let best = null;
+      let bestDist = Number.POSITIVE_INFINITY;
+
+      for (const hit of lastHits) {
+        if (x < hit.x - hit.halfW || x > hit.x + hit.halfW) continue;
+        if (y < hit.yTop - 3 || y > hit.yBottom + 3) continue;
+        const dist = Math.abs(x - hit.x);
+        if (dist < bestDist) {
+          best = hit;
+          bestDist = dist;
+        }
+      }
+
+      if (!best) {
+        hideTooltip();
+        return;
+      }
+
+      showTooltip(candles[best.i], x, y);
+    });
 
     fileInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
