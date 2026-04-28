@@ -1,3 +1,2 @@
-scripts/events_*.csv
-scripts/price_data_*.csv
+*.csv
 node_modules/

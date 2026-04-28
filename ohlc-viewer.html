@@ -1,0 +1,453 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OHLC CSV Candlestick Viewer</title>
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --panel: #fffaf2;
+      --ink: #1f2a37;
+      --muted: #5c6776;
+      --grid: #ddd5c8;
+      --up: #1f8a52;
+      --down: #c4442a;
+      --accent: #314d7a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top right, #e8decf, var(--bg));
+      color: var(--ink);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: min(1200px, 100%);
+      background: var(--panel);
+      border: 1px solid #d9cfbe;
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(39, 28, 14, 0.12);
+      overflow: hidden;
+    }
+
+    .top {
+      padding: 16px;
+      border-bottom: 1px solid #e7dece;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--accent);
+      min-width: 260px;
+    }
+
+    input[type="file"] {
+      border: 1px solid #cfbf9f;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+      color: var(--ink);
+    }
+
+    .meta {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .chart-wrap {
+      padding: 14px;
+      height: 72vh;
+      min-height: 420px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      background: #fffcf6;
+      border: 1px solid #e8decd;
+      border-radius: 10px;
+    }
+
+    .hint {
+      padding: 0 16px 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="top">
+      <h1>OHLC CSV Candlestick Viewer</h1>
+      <input id="fileInput" type="file" accept=".csv,text/csv" />
+      <input id="eventsInput" type="file" accept=".csv,text/csv" />
+      <div class="meta">
+        <span id="rowsInfo">Rows: 0</span>
+        <span id="rangeInfo">Range: -</span>
+        <span id="priceInfo">Price: -</span>
+        <span id="eventsInfo">Events: 0</span>
+      </div>
+    </section>
+    <section class="chart-wrap">
+      <canvas id="chart"></canvas>
+    </section>
+    <div class="hint">OHLC file columns: <code>bucket_start, open, high, low, close</code>. Events file columns: <code>event_timestamp, price_to_beat_canonical, price_to_beat_fallback</code>.</div>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const eventsInput = document.getElementById("eventsInput");
+    const canvas = document.getElementById("chart");
+    const ctx = canvas.getContext("2d");
+    const rowsInfo = document.getElementById("rowsInfo");
+    const rangeInfo = document.getElementById("rangeInfo");
+    const priceInfo = document.getElementById("priceInfo");
+    const eventsInfo = document.getElementById("eventsInfo");
+
+    let candles = [];
+    let events = [];
+
+    function fitCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    window.addEventListener("resize", fitCanvas);
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (inQuotes) {
+          if (ch === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            cell += ch;
+          }
+          continue;
+        }
+
+        if (ch === '"') {
+          inQuotes = true;
+          continue;
+        }
+
+        if (ch === ',') {
+          row.push(cell);
+          cell = "";
+          continue;
+        }
+
+        if (ch === '\n') {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+          continue;
+        }
+
+        if (ch === '\r') continue;
+        cell += ch;
+      }
+
+      if (cell.length || row.length) {
+        row.push(cell);
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function toNum(v) {
+      const n = Number(String(v || "").trim());
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function parseCandleRows(csvText) {
+      const rows = parseCsv(csvText).filter(r => r.some(x => String(x).trim() !== ""));
+      if (rows.length < 2) return [];
+
+      const headers = rows[0].map(h => String(h).trim().toLowerCase());
+      const idx = {
+        t: headers.indexOf("bucket_start"),
+        o: headers.indexOf("open"),
+        h: headers.indexOf("high"),
+        l: headers.indexOf("low"),
+        c: headers.indexOf("close")
+      };
+
+      if (idx.t < 0 || idx.o < 0 || idx.h < 0 || idx.l < 0 || idx.c < 0) {
+        throw new Error("Missing required columns. Need bucket_start, open, high, low, close.");
+      }
+
+      const parsed = [];
+      for (const r of rows.slice(1)) {
+        const t = Date.parse(r[idx.t]);
+        const o = toNum(r[idx.o]);
+        const h = toNum(r[idx.h]);
+        const l = toNum(r[idx.l]);
+        const c = toNum(r[idx.c]);
+
+        if (!Number.isFinite(t) || o === null || h === null || l === null || c === null) continue;
+        parsed.push({ t, o, h, l, c });
+      }
+
+      parsed.sort((a, b) => a.t - b.t);
+      return parsed;
+    }
+
+    function parseEventRows(csvText) {
+      const rows = parseCsv(csvText).filter(r => r.some(x => String(x).trim() !== ""));
+      if (rows.length < 2) return [];
+
+      const headers = rows[0].map(h => String(h).trim().toLowerCase());
+      const tsIdx = headers.indexOf("event_timestamp");
+      const cIdx = headers.indexOf("price_to_beat_canonical");
+      const fIdx = headers.indexOf("price_to_beat_fallback");
+
+      if (tsIdx < 0) {
+        throw new Error("Events CSV missing required column: event_timestamp");
+      }
+
+      const parsed = [];
+      for (const r of rows.slice(1)) {
+        const t = Date.parse(r[tsIdx]);
+        if (!Number.isFinite(t)) continue;
+        const canonical = cIdx >= 0 ? toNum(r[cIdx]) : null;
+        const fallback = fIdx >= 0 ? toNum(r[fIdx]) : null;
+        const priceToBeat = canonical !== null ? canonical : fallback;
+        parsed.push({ t, priceToBeat });
+      }
+
+      parsed.sort((a, b) => a.t - b.t);
+      return parsed;
+    }
+
+    function fmtPrice(v) {
+      if (!Number.isFinite(v)) return "-";
+      if (Math.abs(v) >= 1000) return v.toFixed(2);
+      if (Math.abs(v) >= 1) return v.toFixed(4);
+      return v.toFixed(6);
+    }
+
+    function buildEventWindows(sortedEvents) {
+      if (!sortedEvents.length) return [];
+
+      const times = sortedEvents.map(e => e.t);
+      const deltas = [];
+      for (let i = 0; i < times.length - 1; i++) {
+        const d = times[i + 1] - times[i];
+        if (d > 0) deltas.push(d);
+      }
+
+      const inferredDuration = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 5 * 60 * 1000;
+      const windows = [];
+
+      for (let i = 0; i < sortedEvents.length; i++) {
+        const evt = sortedEvents[i];
+        const next = sortedEvents[i + 1];
+        const endT = next ? next.t : (evt.t + inferredDuration);
+        windows.push({
+          startT: evt.t,
+          endT,
+          priceToBeat: evt.priceToBeat
+        });
+      }
+
+      return windows;
+    }
+
+    function draw() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!candles.length) {
+        ctx.fillStyle = "#5c6776";
+        ctx.font = "15px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText("Upload an OHLC CSV to view candlesticks", w / 2, h / 2);
+        return;
+      }
+
+      const pad = { top: 22, right: 60, bottom: 28, left: 12 };
+      const plotW = Math.max(10, w - pad.left - pad.right);
+      const plotH = Math.max(10, h - pad.top - pad.bottom);
+
+      const maxP = Math.max(...candles.map(c => c.h));
+      const minP = Math.min(...candles.map(c => c.l));
+      const eventPrices = events.map(e => e.priceToBeat).filter(v => Number.isFinite(v));
+      const lineMax = eventPrices.length ? Math.max(...eventPrices) : maxP;
+      const lineMin = eventPrices.length ? Math.min(...eventPrices) : minP;
+      const yMax = Math.max(maxP, lineMax);
+      const yMin = Math.min(minP, lineMin);
+      const span = yMax - yMin || 1;
+
+      const y = (p) => pad.top + ((yMax - p) / span) * plotH;
+
+      ctx.strokeStyle = "#ddd5c8";
+      ctx.lineWidth = 1;
+      const gridLines = 6;
+      ctx.font = "12px Segoe UI";
+      ctx.fillStyle = "#5c6776";
+      ctx.textAlign = "left";
+      for (let i = 0; i <= gridLines; i++) {
+        const py = pad.top + (plotH / gridLines) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, py);
+        ctx.lineTo(w - pad.right, py);
+        ctx.stroke();
+
+        const price = yMax - (span / gridLines) * i;
+        ctx.fillText(fmtPrice(price), w - pad.right + 6, py + 4);
+      }
+
+      const n = candles.length;
+      const step = plotW / Math.max(1, n);
+      const bodyW = Math.max(2, Math.min(18, step * 0.65));
+
+      for (let i = 0; i < n; i++) {
+        const c = candles[i];
+        const x = pad.left + i * step + step / 2;
+        const yo = y(c.o);
+        const yh = y(c.h);
+        const yl = y(c.l);
+        const yc = y(c.c);
+        const up = c.c >= c.o;
+
+        ctx.strokeStyle = up ? "#1f8a52" : "#c4442a";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, yh);
+        ctx.lineTo(x, yl);
+        ctx.stroke();
+
+        ctx.fillStyle = up ? "#1f8a52" : "#c4442a";
+        const top = Math.min(yo, yc);
+        const bh = Math.max(1, Math.abs(yc - yo));
+        ctx.fillRect(x - bodyW / 2, top, bodyW, bh);
+      }
+
+      const minT = candles[0].t;
+      const maxT = candles[candles.length - 1].t;
+      const tSpan = Math.max(1, maxT - minT);
+      const xAt = (t) => pad.left + ((t - minT) / tSpan) * plotW;
+
+      ctx.textAlign = "left";
+      ctx.font = "11px Segoe UI";
+      const windows = buildEventWindows(events);
+      const usedPriceLabels = new Set();
+      for (const wEvt of windows) {
+        if (wEvt.startT >= minT && wEvt.startT <= maxT) {
+          const x = xAt(wEvt.startT);
+          ctx.strokeStyle = "rgba(49, 77, 122, 0.65)";
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(x, pad.top);
+          ctx.lineTo(x, h - pad.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        if (Number.isFinite(wEvt.priceToBeat)) {
+          const yy = y(wEvt.priceToBeat);
+          if (yy >= pad.top && yy <= h - pad.bottom) {
+            const segStart = Math.max(wEvt.startT, minT);
+            const segEnd = Math.min(wEvt.endT, maxT);
+            if (segEnd <= segStart) continue;
+            const x1 = xAt(segStart);
+            const x2 = xAt(segEnd);
+
+            ctx.strokeStyle = "rgba(140, 92, 18, 0.8)";
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, yy);
+            ctx.lineTo(x2, yy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const label = fmtPrice(wEvt.priceToBeat);
+            if (!usedPriceLabels.has(label)) {
+              ctx.fillStyle = "#7b5410";
+              ctx.fillText(`PTB ${label}`, x1 + 4, yy - 4);
+              usedPriceLabels.add(label);
+            }
+          }
+        }
+      }
+
+      const first = new Date(candles[0].t).toISOString();
+      const last = new Date(candles[candles.length - 1].t).toISOString();
+      rangeInfo.textContent = `Range: ${first} -> ${last}`;
+      priceInfo.textContent = `Price: ${fmtPrice(minP)} - ${fmtPrice(maxP)}`;
+      rowsInfo.textContent = `Rows: ${candles.length}`;
+      eventsInfo.textContent = `Events: ${events.length}`;
+    }
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        candles = parseCandleRows(text);
+        if (!candles.length) {
+          throw new Error("No valid OHLC rows found in this file.");
+        }
+        draw();
+      } catch (err) {
+        candles = [];
+        draw();
+        alert(err.message || "Failed to parse CSV");
+      }
+    });
+
+    eventsInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        events = parseEventRows(text);
+        draw();
+      } catch (err) {
+        events = [];
+        draw();
+        alert(err.message || "Failed to parse events CSV");
+      }
+    });
+
+    fitCanvas();
+  </script>
+</body>
+</html>
