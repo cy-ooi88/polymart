@@ -10,6 +10,8 @@ export const state = {
   latestPrice: null,
   upAsk: null,
   downAsk: null,
+  upBid: null,
+  downBid: null,
   currentWindowStartSec: null,
   currentWindowEndSec: null,
   ws: null,
@@ -20,5 +22,10 @@ export const state = {
   pricePoints: [],
   chartCtx: null,
   chartDpr: 1,
-  eventCache: new Map()
+  eventCache: new Map(),
+  walletAddress: null,
+  walletConnected: false,
+  authCredentials: null,
+  pendingOrders: [],
+  orderSize: 1
 };

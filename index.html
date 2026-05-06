@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BTC Up or Down - 5 Minutes</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
 </head>
 <body>
   <main class="app">
@@ -19,6 +20,12 @@
             <a id="liveResultLink" class="event-slug" href="https://polymarket.com/markets" target="_blank" rel="noopener noreferrer">Live Result</a>
           </div>
         </div>
+      </div>
+
+      <div class="wallet-section">
+        <button id="connectWalletBtn" class="wallet-btn" type="button">Connect Wallet</button>
+        <button id="disconnectWalletBtn" class="wallet-btn" type="button" style="display: none;">Disconnect</button>
+        <div id="walletAddress" class="wallet-address"></div>
       </div>
 
       <div class="timer" aria-label="Countdown timer">
@@ -60,8 +67,18 @@
     </section>
 
     <section class="actions">
-      <button id="buyUpBtn" class="buy-btn up" type="button">Buy Up --</button>
-      <button id="buyDownBtn" class="buy-btn down" type="button">Buy Down --</button>
+      <div class="order-size-control">
+        <label for="orderSize">Order Size (USDC):</label>
+        <input id="orderSize" type="number" min="0.1" step="0.1" value="1" />
+      </div>
+      <div class="action-group">
+        <button id="buyUpBtn" class="buy-btn up" type="button" disabled>Buy Up --</button>
+        <button id="sellUpBtn" class="sell-btn up" type="button" disabled>Sell Up --</button>
+      </div>
+      <div class="action-group">
+        <button id="buyDownBtn" class="buy-btn down" type="button" disabled>Buy Down --</button>
+        <button id="sellDownBtn" class="sell-btn down" type="button" disabled>Sell Down --</button>
+      </div>
     </section>
 
     <section class="logging-controls" aria-label="Data logging controls">

@@ -73,6 +73,14 @@ function run() {
     const eventsPath = path.join(scriptsDir, eventsFile);
     const pricePath = path.join(scriptsDir, priceFile);
 
+    const outEvents = path.join(outputDir, `events_sanitized_${suffix}.csv`);
+    const outPrice = path.join(outputDir, `price_data_sanitized_${suffix}.csv`);
+
+    if (fs.existsSync(outEvents) && fs.existsSync(outPrice)) {
+      console.log(`Skipping ${eventsFile}: already sanitized (${path.basename(outEvents)} exists)`);
+      continue;
+    }
+
     if (!fs.existsSync(pricePath)) {
       console.log(`Skipping ${eventsFile}: missing ${priceFile}`);
       continue;
@@ -109,9 +117,6 @@ function run() {
 
     const sanitizedEvents = trimmedEvents.filter((r) => keepUuids.has(r.event_uuid));
     const sanitizedPrice = trimmedPrice.filter((r) => keepUuids.has(r.event_uuid));
-
-    const outEvents = path.join(outputDir, `events_sanitized_${suffix}.csv`);
-    const outPrice = path.join(outputDir, `price_data_sanitized_${suffix}.csv`);
 
     fs.writeFileSync(outEvents, toCsv(eventsCsv.headers, sanitizedEvents), 'utf8');
     fs.writeFileSync(outPrice, toCsv(priceCsv.headers, sanitizedPrice), 'utf8');

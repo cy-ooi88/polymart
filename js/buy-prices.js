@@ -10,6 +10,11 @@ export function updateBuyButtons() {
   dom.buyDownBtnEl.textContent = `Buy Down ${formatShareLabel(state.downAsk)}`;
 }
 
+export function updateSellButtons() {
+  dom.sellUpBtnEl.textContent = `Sell Up ${formatShareLabel(state.upBid)}`;
+  dom.sellDownBtnEl.textContent = `Sell Down ${formatShareLabel(state.downBid)}`;
+}
+
 async function fetchBestAsk(tokenId) {
   const resp = await fetch(`https://clob.polymarket.com/book?token_id=${encodeURIComponent(tokenId)}`, { cache: "no-store" });
   if (!resp.ok) throw new Error("Failed to fetch orderbook");
@@ -26,18 +31,41 @@ async function fetchBestAsk(tokenId) {
   return Number.isFinite(bestAsk) ? bestAsk : null;
 }
 
+async function fetchBestBid(tokenId) {
+  const resp = await fetch(`https://clob.polymarket.com/book?token_id=${encodeURIComponent(tokenId)}`, { cache: "no-store" });
+  if (!resp.ok) throw new Error("Failed to fetch orderbook");
+  const data = await resp.json();
+  const bids = Array.isArray(data.bids) ? data.bids : [];
+  if (!bids.length) return null;
+
+  let bestBid = Number.NEGATIVE_INFINITY;
+  bids.forEach((b) => {
+    const p = Number(b.price);
+    if (Number.isFinite(p) && p > bestBid) bestBid = p;
+  });
+
+  return Number.isFinite(bestBid) && bestBid > Number.NEGATIVE_INFINITY ? bestBid : null;
+}
+
 export async function refreshBuyPrices() {
   if (!state.upTokenId || !state.downTokenId) return;
   try {
-    const [upAsk, downAsk] = await Promise.all([
+    const [upAsk, downAsk, upBid, downBid] = await Promise.all([
       fetchBestAsk(state.upTokenId),
-      fetchBestAsk(state.downTokenId)
+      fetchBestAsk(state.downTokenId),
+      fetchBestBid(state.upTokenId),
+      fetchBestBid(state.downTokenId)
     ]);
     state.upAsk = upAsk;
     state.downAsk = downAsk;
+    state.upBid = upBid;
+    state.downBid = downBid;
     updateBuyButtons();
+    updateSellButtons();
     logPriceTick("buy_up", upAsk);
     logPriceTick("buy_down", downAsk);
+    logPriceTick("sell_up", upBid);
+    logPriceTick("sell_down", downBid);
   } catch (err) {
     setStatus(`Price update failed: ${err.message}`, "warn");
   }
@@ -52,6 +80,17 @@ function bestAskFromBookMessage(data) {
     if (Number.isFinite(p) && p < bestAsk) bestAsk = p;
   });
   return Number.isFinite(bestAsk) ? bestAsk : null;
+}
+
+function bestBidFromBookMessage(data) {
+  const bids = Array.isArray(data?.bids) ? data.bids : [];
+  if (!bids.length) return null;
+  let bestBid = Number.NEGATIVE_INFINITY;
+  bids.forEach((b) => {
+    const p = Number(b?.price);
+    if (Number.isFinite(p) && p > bestBid) bestBid = p;
+  });
+  return Number.isFinite(bestBid) && bestBid > Number.NEGATIVE_INFINITY ? bestBid : null;
 }
 
 function applyBestAsk(assetId, bestAsk) {
@@ -69,6 +108,21 @@ function applyBestAsk(assetId, bestAsk) {
   }
 }
 
+function applyBestBid(assetId, bestBid) {
+  if (!assetId || !Number.isFinite(bestBid)) return;
+  if (String(assetId) === String(state.upTokenId)) {
+    state.upBid = bestBid;
+    updateSellButtons();
+    logPriceTick("sell_up", bestBid);
+    return;
+  }
+  if (String(assetId) === String(state.downTokenId)) {
+    state.downBid = bestBid;
+    updateSellButtons();
+    logPriceTick("sell_down", bestBid);
+  }
+}
+
 function handleMarketWsMessage(data) {
   if (!data || typeof data !== "object") return;
   const eventType = String(data.event_type || "").toLowerCase();
@@ -76,26 +130,35 @@ function handleMarketWsMessage(data) {
 
   if (eventType === "best_bid_ask") {
     const bestAsk = Number(data.best_ask);
+    const bestBid = Number(data.best_bid);
     applyBestAsk(assetId, bestAsk);
+    applyBestBid(assetId, bestBid);
     return;
   }
 
   if (eventType === "book") {
     const bestAsk = bestAskFromBookMessage(data);
+    const bestBid = bestBidFromBookMessage(data);
     applyBestAsk(assetId, bestAsk);
+    applyBestBid(assetId, bestBid);
     return;
   }
 
   if (eventType === "price_change") {
     const topLevelBestAsk = Number(data.best_ask);
+    const topLevelBestBid = Number(data.best_bid);
     if (Number.isFinite(topLevelBestAsk)) {
       applyBestAsk(assetId, topLevelBestAsk);
-      return;
+    }
+    if (Number.isFinite(topLevelBestBid)) {
+      applyBestBid(assetId, topLevelBestBid);
     }
     const changes = Array.isArray(data.price_changes) ? data.price_changes : [];
     changes.forEach((chg) => {
       const bestAsk = Number(chg?.best_ask);
+      const bestBid = Number(chg?.best_bid);
       applyBestAsk(assetId, bestAsk);
+      applyBestBid(assetId, bestBid);
     });
   }
 }

@@ -140,6 +140,12 @@ async function processFile(filePath, unresolvedReport) {
     for (const row of rows) row.result = row.result || '';
   }
 
+  const needsUpdate = rows.some((row) => needsRefresh(row.result));
+  if (!needsUpdate) {
+    console.log(`${path.basename(filePath)} -> skipped (all results already resolved)`);
+    return;
+  }
+
   let changed = false;
 
   for (const row of rows) {
