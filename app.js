@@ -134,10 +134,25 @@ function handleDisconnectWallet() {
 }
 
 async function handleBuyUp() {
-  if (!isConnected() || !state.upTokenId || !state.upAsk) return;
+  if (!isConnected()) {
+    setStatus("Cannot place Buy Up: wallet not connected.", "err");
+    return;
+  }
+  if (!state.upTokenId) {
+    setStatus("Cannot place Buy Up: Up token ID is not loaded yet.", "err");
+    return;
+  }
+  if (!state.upAsk) {
+    setStatus("Cannot place Buy Up: Up ask price is not available yet.", "err");
+    return;
+  }
 
   try {
     const size = parseFloat(dom.orderSizeEl.value) || 1;
+    if (!Number.isFinite(size) || size <= 0) {
+      setStatus("Cannot place Buy Up: order size must be greater than 0.", "err");
+      return;
+    }
     dom.buyUpBtnEl.disabled = true;
     setStatus("Placing buy order...", "warn");
 
@@ -153,10 +168,25 @@ async function handleBuyUp() {
 }
 
 async function handleBuyDown() {
-  if (!isConnected() || !state.downTokenId || !state.downAsk) return;
+  if (!isConnected()) {
+    setStatus("Cannot place Buy Down: wallet not connected.", "err");
+    return;
+  }
+  if (!state.downTokenId) {
+    setStatus("Cannot place Buy Down: Down token ID is not loaded yet.", "err");
+    return;
+  }
+  if (!state.downAsk) {
+    setStatus("Cannot place Buy Down: Down ask price is not available yet.", "err");
+    return;
+  }
 
   try {
     const size = parseFloat(dom.orderSizeEl.value) || 1;
+    if (!Number.isFinite(size) || size <= 0) {
+      setStatus("Cannot place Buy Down: order size must be greater than 0.", "err");
+      return;
+    }
     dom.buyDownBtnEl.disabled = true;
     setStatus("Placing buy order...", "warn");
 
@@ -172,10 +202,25 @@ async function handleBuyDown() {
 }
 
 async function handleSellUp() {
-  if (!isConnected() || !state.upTokenId || !state.upBid) return;
+  if (!isConnected()) {
+    setStatus("Cannot place Sell Up: wallet not connected.", "err");
+    return;
+  }
+  if (!state.upTokenId) {
+    setStatus("Cannot place Sell Up: Up token ID is not loaded yet.", "err");
+    return;
+  }
+  if (!state.upBid) {
+    setStatus("Cannot place Sell Up: Up bid price is not available yet.", "err");
+    return;
+  }
 
   try {
     const size = parseFloat(dom.orderSizeEl.value) || 1;
+    if (!Number.isFinite(size) || size <= 0) {
+      setStatus("Cannot place Sell Up: order size must be greater than 0.", "err");
+      return;
+    }
     dom.sellUpBtnEl.disabled = true;
     setStatus("Placing sell order...", "warn");
 
@@ -191,10 +236,25 @@ async function handleSellUp() {
 }
 
 async function handleSellDown() {
-  if (!isConnected() || !state.downTokenId || !state.downBid) return;
+  if (!isConnected()) {
+    setStatus("Cannot place Sell Down: wallet not connected.", "err");
+    return;
+  }
+  if (!state.downTokenId) {
+    setStatus("Cannot place Sell Down: Down token ID is not loaded yet.", "err");
+    return;
+  }
+  if (!state.downBid) {
+    setStatus("Cannot place Sell Down: Down bid price is not available yet.", "err");
+    return;
+  }
 
   try {
     const size = parseFloat(dom.orderSizeEl.value) || 1;
+    if (!Number.isFinite(size) || size <= 0) {
+      setStatus("Cannot place Sell Down: order size must be greater than 0.", "err");
+      return;
+    }
     dom.sellDownBtnEl.disabled = true;
     setStatus("Placing sell order...", "warn");
 

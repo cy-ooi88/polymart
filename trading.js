@@ -133,8 +133,21 @@ async function submitOrder(signedOrder) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Order submission failed: ${response.status} ${response.statusText}`);
+      const responseText = await response.text().catch(() => '');
+      let errorData = {};
+      try {
+        errorData = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        errorData = {};
+      }
+
+      const parts = [];
+      if (errorData?.error) parts.push(String(errorData.error));
+      if (errorData?.message) parts.push(String(errorData.message));
+      if (responseText && !parts.length) parts.push(responseText.slice(0, 500));
+
+      const detail = parts.length ? ` - ${parts.join(' | ')}` : '';
+      throw new Error(`Order submission failed: ${response.status} ${response.statusText}${detail}`);
     }
 
     const result = await response.json();
