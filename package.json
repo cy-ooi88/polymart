@@ -1,0 +1,10 @@
+{
+  "name": "polymart-bullpen-local-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Bullpen-backed trading app for BTC 5m prediction markets",
+  "scripts": {
+    "start": "node server/index.js",
+    "check": "node --check server/index.js && node --check server/bullpen-adapter.js && node --check server/event-resolver.js"
+  }
+}

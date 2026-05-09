@@ -3,6 +3,8 @@ export const state = {
   conditionId: null,
   upTokenId: null,
   downTokenId: null,
+  upOutcomeLabel: "Yes",
+  downOutcomeLabel: "No",
   targetPriceCanonical: null,
   targetPriceFallback: null,
   targetPriceCanonicalTs: null,
@@ -23,9 +25,21 @@ export const state = {
   chartCtx: null,
   chartDpr: 1,
   eventCache: new Map(),
-  walletAddress: null,
-  walletConnected: false,
-  authCredentials: null,
-  pendingOrders: [],
-  orderSize: 1
+  orderSize: 1,
+  marketSource: null,
+  tradingBusy: false,
+  bullpen: {
+    serviceOnline: false,
+    cliInstalled: false,
+    loggedIn: false,
+    address: null,
+    addressMasked: "",
+    approvalsOk: false,
+    approvalsMessage: "",
+    preflightOk: false,
+    preflightMessage: "",
+    sessionKeyLoaded: false,
+    sessionKeyFingerprint: "",
+    loginCommand: "bullpen login"
+  }
 };

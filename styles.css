@@ -344,41 +344,104 @@
       gap: 14px;
     }
 
-    .wallet-section {
+    .session-section {
+      flex: 1;
+      max-width: 420px;
+      min-width: 300px;
+    }
+
+    .session-card {
+      border: 1px solid #21324d;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #0b1420 0%, #0a111b 100%);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .session-header {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #d9e1ee;
+      font-size: 0.97rem;
+    }
+
+    .session-grid {
+      display: grid;
+      gap: 6px;
+    }
+
+    .session-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #8da2c3;
+      font-size: 0.85rem;
+    }
+
+    .session-row strong {
+      color: #edf2fb;
+      font-family: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+      font-size: 0.8rem;
+      text-align: right;
+    }
+
+    .session-key-row {
+      display: block;
+    }
+
+    .session-key-input {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      background: #132238;
+      border: 1px solid #2b4062;
+      border-radius: 9px;
+      color: #f5f8ff;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .session-key-input:focus {
+      outline: none;
+      border-color: #f7a600;
+    }
+
+    .session-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
 
-    .wallet-btn {
+    .session-btn {
       border: 1px solid #2a4062;
       border-radius: 10px;
-      height: 42px;
-      padding: 0 20px;
+      min-height: 40px;
+      padding: 0 12px;
       color: #d9e1ee;
       background: #142338;
-      font-size: 0.95rem;
+      font-size: 0.86rem;
       font-weight: 700;
       letter-spacing: 0.01em;
       cursor: pointer;
       transition: background-color 120ms ease;
     }
 
-    .wallet-btn:hover {
+    .session-btn:hover:enabled {
       background: #1b3150;
     }
 
-    .wallet-btn:disabled {
+    .session-btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
     }
 
-    .wallet-address {
-      color: #8da2c3;
-      font-size: 0.85rem;
-      font-weight: 600;
-      font-family: 'Courier New', monospace;
+    .session-note {
+      color: #7c8da7;
+      font-size: 0.78rem;
+      line-height: 1.35;
     }
 
     .logging-controls {
@@ -553,6 +616,12 @@
         flex-direction: column;
       }
 
+      .session-section {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+      }
+
       .timer {
         margin-left: 94px;
         padding-top: 0;
@@ -592,6 +661,10 @@
 
       .actions {
         grid-template-columns: 1fr;
+      }
+
+      .session-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .log-downloads {

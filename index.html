@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BTC Up or Down - 5 Minutes</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
@@ -22,10 +21,31 @@
         </div>
       </div>
 
-      <div class="wallet-section">
-        <button id="connectWalletBtn" class="wallet-btn" type="button">Connect Wallet</button>
-        <button id="disconnectWalletBtn" class="wallet-btn" type="button" style="display: none;">Disconnect</button>
-        <div id="walletAddress" class="wallet-address"></div>
+      <div class="session-section">
+        <div class="session-card">
+          <div class="session-header">
+            <strong>Bullpen Session</strong>
+            <button id="refreshBullpenBtn" class="session-btn" type="button">Refresh</button>
+          </div>
+          <div class="session-grid">
+            <div class="session-row"><span>Status</span><strong id="bullpenStatusValue">Checking...</strong></div>
+            <div class="session-row"><span>Wallet</span><strong id="bullpenAddressValue">--</strong></div>
+            <div class="session-row"><span>Approvals</span><strong id="bullpenApprovalsValue">--</strong></div>
+            <div class="session-row"><span>Preflight</span><strong id="bullpenPreflightValue">--</strong></div>
+            <div class="session-row"><span>Session Key</span><strong id="bullpenSessionKeyValue">Not loaded</strong></div>
+          </div>
+          <div class="session-key-row">
+            <input id="sessionKeyInput" class="session-key-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste private key for this session only" />
+          </div>
+          <div class="session-actions">
+            <button id="saveSessionKeyBtn" class="session-btn" type="button">Load Key</button>
+            <button id="clearSessionKeyBtn" class="session-btn" type="button">Clear Key</button>
+            <button id="preflightBtn" class="session-btn" type="button">Preflight</button>
+            <button id="approveBtn" class="session-btn" type="button">Set Approvals</button>
+            <button id="loginHelpBtn" class="session-btn" type="button">Login Help</button>
+          </div>
+          <div class="session-note">Stored in backend memory only. Cleared on restart or when you click Clear Key.</div>
+        </div>
       </div>
 
       <div class="timer" aria-label="Countdown timer">
@@ -95,8 +115,6 @@
     <div id="status" class="status"></div>
   </main>
 
-    <script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
-
-
