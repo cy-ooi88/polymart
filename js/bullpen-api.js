@@ -58,6 +58,11 @@ export function getCurrentMarketPrice(slug) {
   return requestJson(`/api/markets/current/price${query}`);
 }
 
+export function getCurrentMarketTarget(slug) {
+  const query = slug ? `?slug=${encodeURIComponent(slug)}` : "";
+  return requestJson(`/api/markets/current/target${query}`);
+}
+
 export function getPositions() {
   return requestJson("/api/positions");
 }

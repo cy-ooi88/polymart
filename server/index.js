@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { BullpenAdapter } = require("./bullpen-adapter");
+const { TargetResolver } = require("./target-resolver");
+const { resolveMarketTargetResponse } = require("./market-target-route");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const HOST = process.env.HOST || "127.0.0.1";
@@ -11,6 +13,7 @@ const PORT = Number(process.env.PORT || 8787);
 const allowedOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
 
 const adapter = new BullpenAdapter();
+const targetResolver = new TargetResolver();
 const sessionKeyStore = {
   loaded: false,
   privateKey: null,
@@ -182,6 +185,17 @@ async function handleApi(req, res, url) {
       ok: true,
       price
     });
+    return true;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/markets/current/target") {
+    const slug = url.searchParams.get("slug") || "";
+    const { statusCode, payload } = await resolveMarketTargetResponse({
+      adapter,
+      targetResolver,
+      slug
+    });
+    sendJson(res, statusCode, payload);
     return true;
   }
 

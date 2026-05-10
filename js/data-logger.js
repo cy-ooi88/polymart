@@ -6,6 +6,9 @@ const EVENT_HEADERS = [
   "event_timestamp",
   "price_to_beat_canonical",
   "price_to_beat_fallback",
+  "price_to_beat_source",
+  "price_to_beat_authoritative",
+  "price_to_beat_fetched_at",
   "event_uuid"
 ];
 
@@ -73,6 +76,10 @@ function formatMaybeNumber(value) {
   return Number.isFinite(value) ? String(value) : NA;
 }
 
+function formatMaybeBoolean(value) {
+  return typeof value === "boolean" ? String(value) : NA;
+}
+
 function clearPendingEventTimer() {
   if (!loggerState.pendingEventTimeoutId) return;
   clearTimeout(loggerState.pendingEventTimeoutId);
@@ -101,6 +108,9 @@ function emitEventRowIfDue(eventSlug) {
     event_timestamp: toIsoTimestamp(event.startSec * 1000),
     price_to_beat_canonical: formatMaybeNumber(state.targetPriceCanonical),
     price_to_beat_fallback: formatMaybeNumber(state.targetPriceFallback),
+    price_to_beat_source: state.targetPriceCanonicalSource || NA,
+    price_to_beat_authoritative: formatMaybeBoolean(state.targetPriceCanonicalAuthoritative),
+    price_to_beat_fetched_at: state.targetPriceCanonicalFetchedAt || NA,
     event_uuid: event.eventUuid
   });
   loggerState.loggedEventSlugs.add(eventSlug);

@@ -5,14 +5,7 @@ import { formatDelta, formatUsd } from "./formatters.js";
 import { state } from "./state.js";
 
 function chartTargetPrice() {
-  if (Number.isFinite(state.targetPriceCanonical)) return state.targetPriceCanonical;
-  return Number.isFinite(state.targetPriceFallback) ? state.targetPriceFallback : null;
-}
-
-function chartTargetSourceLabel() {
-  if (Number.isFinite(state.targetPriceCanonical)) return "CL";
-  if (Number.isFinite(state.targetPriceFallback)) return "FB";
-  return "";
+  return Number.isFinite(state.targetPriceCanonical) ? state.targetPriceCanonical : null;
 }
 
 export function updateTargetDisplay() {
@@ -98,24 +91,6 @@ function computeYRange(points, targetPrice) {
   return { min, max };
 }
 
-function maybeSetCanonicalTarget(timestampMs, price) {
-  if (!Number.isFinite(state.targetPriceCanonicalAnchorMs)) return false;
-  const t = Number(timestampMs);
-  const p = Number(price);
-  if (!Number.isFinite(t) || !Number.isFinite(p)) return false;
-
-  const anchorMs = state.targetPriceCanonicalAnchorMs;
-  if (t < anchorMs) return false;
-
-  const shouldReplace = !Number.isFinite(state.targetPriceCanonicalTs)
-    || t < state.targetPriceCanonicalTs;
-
-  if (!shouldReplace) return false;
-  state.targetPriceCanonical = p;
-  state.targetPriceCanonicalTs = t;
-  return true;
-}
-
 function drawChart() {
   if (!state.chartCtx) return;
   const ctx = state.chartCtx;
@@ -193,15 +168,11 @@ function drawChart() {
     ctx.lineTo(width - pad.right, y);
     ctx.stroke();
     ctx.restore();
-
-    dom.targetTagEl.style.display = "inline-flex";
-    const sourceLabel = chartTargetSourceLabel();
-    dom.targetTagEl.textContent = sourceLabel ? `Target ${sourceLabel}` : "Target";
-    const top = Math.max(6, Math.min(height - 36, y - 14));
-    dom.targetTagEl.style.top = `${top}px`;
   } else {
     dom.targetTagEl.style.display = "none";
   }
+
+  dom.targetTagEl.style.display = "none";
 
   if (points.length >= 2) {
     ctx.lineWidth = 3;
@@ -279,11 +250,6 @@ export function addPricePoint(timestampMs, price) {
   state.latestPrice = p;
   logPriceTick("current_price", p, t);
   dom.btcEl.textContent = `$${formatUsd(p)}`;
-  const canonicalChanged = maybeSetCanonicalTarget(t, p);
-  if (canonicalChanged) {
-    updateTargetDisplay();
-  } else {
-    renderPriceDelta();
-    drawChart();
-  }
+  renderPriceDelta();
+  drawChart();
 }

@@ -3,6 +3,7 @@ import {
   clearBullpenSessionKey,
   getBullpenStatus,
   getCurrentMarket,
+  getCurrentMarketTarget,
   getPositions,
   setBullpenSessionKey,
   startBullpenLogin
@@ -152,9 +153,11 @@ function updateExternalLinks(slug) {
 
 function resetMarketState() {
   state.targetPriceCanonical = null;
-  state.targetPriceCanonicalTs = null;
-  state.targetPriceCanonicalAnchorMs = null;
+  state.targetPriceCanonicalSource = null;
+  state.targetPriceCanonicalAuthoritative = false;
+  state.targetPriceCanonicalFetchedAt = null;
   state.targetPriceFallback = null;
+  state.targetPriceFallbackSource = null;
   state.latestPrice = null;
   state.upAsk = null;
   state.downAsk = null;
@@ -175,10 +178,8 @@ function applyMarketSnapshot(snapshot, fallbackTargetPrice = null) {
   state.marketSource = snapshot.source || "unknown";
 
   resetMarketState();
-
-  const canonicalAnchorMs = Number.isFinite(snapshot.startSec) ? snapshot.startSec * 1000 : null;
-  state.targetPriceCanonicalAnchorMs = canonicalAnchorMs;
   state.targetPriceFallback = fallbackTargetPrice;
+  state.targetPriceFallbackSource = Number.isFinite(fallbackTargetPrice) ? "event_metadata_prefill" : null;
 
   setDataLoggerEventContext({
     slug: snapshot.slug,
@@ -194,6 +195,34 @@ function applyMarketSnapshot(snapshot, fallbackTargetPrice = null) {
   updateSellButtons();
   updateTargetDisplay();
   updateCountdown();
+}
+
+async function refreshTargetPricesForSlug(slug) {
+  if (!slug) return;
+
+  try {
+    const target = await getCurrentMarketTarget(slug);
+    if (state.currentSlug !== slug) return;
+
+    if (target?.ok && Number.isFinite(target.priceToBeat)) {
+      if (!Number.isFinite(state.targetPriceCanonical)) {
+        state.targetPriceCanonical = Number(target.priceToBeat);
+        state.targetPriceCanonicalSource = String(target.source || "authoritative");
+        state.targetPriceCanonicalAuthoritative = Boolean(target.authoritative);
+        state.targetPriceCanonicalFetchedAt = String(target.fetchedAt || new Date().toISOString());
+        updateTargetDisplay();
+      }
+    }
+  } catch {
+  }
+
+  fetchTargetPriceBySlug(slug).then((target) => {
+    if (!Number.isFinite(target)) return;
+    if (state.currentSlug !== slug) return;
+    state.targetPriceFallback = target;
+    state.targetPriceFallbackSource = "frontend_public_fallback";
+    updateTargetDisplay();
+  });
 }
 
 async function loadEventAndStart() {
@@ -227,14 +256,7 @@ async function loadEventAndStart() {
     setStatus(`Bullpen market lookup failed. Showing fallback event metadata: ${error.message}`, "warn");
   }
 
-  if (slugForTargetFetch) {
-    fetchTargetPriceBySlug(slugForTargetFetch).then((target) => {
-      if (!Number.isFinite(target)) return;
-      if (state.currentSlug !== slugForTargetFetch) return;
-      state.targetPriceFallback = target;
-      updateTargetDisplay();
-    });
-  }
+  if (slugForTargetFetch) refreshTargetPricesForSlug(slugForTargetFetch);
 
   await refreshBuyPrices();
   updateTradingButtonStates();
