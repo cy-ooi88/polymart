@@ -45,6 +45,34 @@ function coerceBooleanStatus(value) {
   return null;
 }
 
+function normalizeOutcomeName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
+function isUpAlias(name) {
+  return ["up", "yes", "y", "true", "1"].includes(normalizeOutcomeName(name));
+}
+
+function isDownAlias(name) {
+  return ["down", "no", "n", "false", "0"].includes(normalizeOutcomeName(name));
+}
+
+function parseAvailableOutcomeLabels(text) {
+  const match = String(text || "").match(/Available:\s*(\[[^\]]+\])/i);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[1]);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function chooseOutcomeLabel(side, candidates) {
+  const matcher = normalizeOutcomeName(side) === "up" ? isUpAlias : isDownAlias;
+  return candidates.find((label) => matcher(label)) || null;
+}
+
 class BullpenAdapter {
   constructor() {
     this.command = process.env.BULLPEN_CMD || "bullpen";
@@ -364,6 +392,75 @@ class BullpenAdapter {
     return normalizedSide === "up" ? market.upOutcomeLabel || "Yes" : market.downOutcomeLabel || "No";
   }
 
+  buildTradeArgs(action, slug, outcome, quantity, jsonOutput) {
+    const args = ["polymarket", action, slug, outcome, quantity, "--yes"];
+    if (jsonOutput) {
+      args.push("--output", "json");
+    }
+    return args;
+  }
+
+  async executeTradeWithOutcomeAliases(action, { slug, side, quantity, fallbackLabel }) {
+    const primaryOutcome = await this.resolveOutcomeLabel(slug, side);
+    const jsonResult = await this.run(this.buildTradeArgs(action, slug, primaryOutcome, quantity, true), {
+      timeoutMs: 45000
+    });
+
+    if (jsonResult.ok) {
+      const data = parseJsonSafe(jsonResult.stdout);
+      return {
+        ok: true,
+        orderId: data?.order_id || data?.orderId || data?.id || null,
+        filled: data?.filled || data?.fill || null,
+        raw: data || jsonResult.stdout,
+        outcome: primaryOutcome
+      };
+    }
+
+    const available = parseAvailableOutcomeLabels(jsonResult.error || jsonResult.stderr || jsonResult.stdout);
+    const aliasOutcome = chooseOutcomeLabel(side, available);
+    const retryOutcome = aliasOutcome && normalizeOutcomeName(aliasOutcome) !== normalizeOutcomeName(primaryOutcome)
+      ? aliasOutcome
+      : null;
+
+    const outcomesToTry = retryOutcome ? [primaryOutcome, retryOutcome] : [primaryOutcome];
+    let lastFailure = jsonResult;
+
+    for (const outcome of outcomesToTry) {
+      const fallback = await this.run(this.buildTradeArgs(action, slug, outcome, quantity, false), {
+        timeoutMs: 45000
+      });
+      if (fallback.ok) {
+        return {
+          ok: true,
+          outcome,
+          ...this.parseTradeResult(fallback.stdout, fallbackLabel),
+          raw: fallback.stdout
+        };
+      }
+      lastFailure = fallback;
+    }
+
+    if (retryOutcome) {
+      const retryJson = await this.run(this.buildTradeArgs(action, slug, retryOutcome, quantity, true), {
+        timeoutMs: 45000
+      });
+      if (retryJson.ok) {
+        const data = parseJsonSafe(retryJson.stdout);
+        return {
+          ok: true,
+          orderId: data?.order_id || data?.orderId || data?.id || null,
+          filled: data?.filled || data?.fill || null,
+          raw: data || retryJson.stdout,
+          outcome: retryOutcome
+        };
+      }
+      lastFailure = retryJson;
+    }
+
+    throw new Error(lastFailure.error || "Bullpen trade command failed");
+  }
+
   parseTradeResult(stdout, fallbackLabel) {
     const text = String(stdout || "");
     const orderIdMatch = text.match(/Order submitted successfully \(ID:\s*([^)]+)\)/i);
@@ -379,78 +476,36 @@ class BullpenAdapter {
     const amount = Number(amountUsd);
     if (!slug) throw new Error("Missing market slug");
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Buy amount must be greater than 0");
-    const outcome = await this.resolveOutcomeLabel(slug, side);
-
-    const result = await this.run(
-      ["polymarket", "buy", slug, outcome, amount.toFixed(2), "--yes", "--output", "json"],
-      { timeoutMs: 45000 }
-    );
-
-    if (result.ok) {
-      const data = parseJsonSafe(result.stdout);
-      return {
-        ok: true,
-        orderId: data?.order_id || data?.orderId || data?.id || null,
-        filled: data?.filled || data?.fill || null,
-        raw: data || result.stdout
-      };
-    }
-
-    const fallback = await this.run(["polymarket", "buy", slug, outcome, amount.toFixed(2), "--yes"], {
-      timeoutMs: 45000
+    return this.executeTradeWithOutcomeAliases("buy", {
+      slug,
+      side,
+      quantity: amount.toFixed(2),
+      fallbackLabel: "Buy submitted"
     });
-    if (!fallback.ok) {
-      throw new Error(fallback.error || "Bullpen buy command failed");
-    }
-    return {
-      ok: true,
-      ...this.parseTradeResult(fallback.stdout, "Buy submitted"),
-      raw: fallback.stdout
-    };
   }
 
   async placeSell({ slug, side, amountUsd }) {
     const amount = Number(amountUsd);
     if (!slug) throw new Error("Missing market slug");
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Sell amount must be greater than 0");
-    const outcome = await this.resolveOutcomeLabel(slug, side);
-
     const price = await this.getPrice(slug);
-    const bid = outcome.toLowerCase() === "yes" || outcome.toLowerCase() === "up" ? price.upBid : price.downBid;
+    const normalizedSide = String(side || "").trim().toLowerCase();
+    const bid = normalizedSide === "up" ? price.upBid : price.downBid;
     if (!Number.isFinite(bid) || bid <= 0) {
       throw new Error(`No bid available to convert ${amount.toFixed(2)} USDC into shares`);
     }
 
     const shares = amount / bid;
-    const result = await this.run(
-      ["polymarket", "sell", slug, outcome, shares.toFixed(6), "--yes", "--output", "json"],
-      { timeoutMs: 45000 }
-    );
-
-    if (result.ok) {
-      const data = parseJsonSafe(result.stdout);
-      return {
-        ok: true,
-        orderId: data?.order_id || data?.orderId || data?.id || null,
-        filled: data?.filled || data?.fill || null,
-        shares: Number(shares.toFixed(6)),
-        bid,
-        raw: data || result.stdout
-      };
-    }
-
-    const fallback = await this.run(["polymarket", "sell", slug, outcome, shares.toFixed(6), "--yes"], {
-      timeoutMs: 45000
+    const result = await this.executeTradeWithOutcomeAliases("sell", {
+      slug,
+      side,
+      quantity: shares.toFixed(6),
+      fallbackLabel: "Sell submitted"
     });
-    if (!fallback.ok) {
-      throw new Error(fallback.error || "Bullpen sell command failed");
-    }
     return {
-      ok: true,
+      ...result,
       shares: Number(shares.toFixed(6)),
-      bid,
-      ...this.parseTradeResult(fallback.stdout, "Sell submitted"),
-      raw: fallback.stdout
+      bid
     };
   }
 }

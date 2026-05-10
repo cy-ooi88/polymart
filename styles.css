@@ -226,8 +226,15 @@
       color: var(--down);
     }
 
-    .chart-panel {
+    .main-layout {
       margin-top: 10px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .chart-panel {
       padding: 0;
       border-radius: 10px;
       overflow: hidden;
@@ -297,8 +304,58 @@
       pointer-events: none;
     }
 
+    .trading-sidebar {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .portfolio-card {
+      border: 1px solid #203250;
+      border-radius: 10px;
+      padding: 12px;
+      background: linear-gradient(180deg, #0b131f 0%, #0a111b 100%);
+      display: grid;
+      gap: 10px;
+    }
+
+    .portfolio-title {
+      color: #d9e1ee;
+      font-weight: 700;
+      font-size: 0.94rem;
+      letter-spacing: 0.01em;
+    }
+
+    .portfolio-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .portfolio-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: #8da2c3;
+      font-size: 0.88rem;
+    }
+
+    .portfolio-row strong {
+      color: #edf2fb;
+      font-family: "Consolas", "SFMono-Regular", Menlo, Monaco, monospace;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    .portfolio-row strong.positive {
+      color: var(--up);
+    }
+
+    .portfolio-row strong.negative {
+      color: var(--down);
+    }
+
     .actions {
-      margin-top: 14px;
       display: grid;
       gap: 14px;
     }
@@ -504,14 +561,24 @@
     .buy-btn {
       border: 0;
       border-radius: 12px;
-      height: 58px;
-      font-size: clamp(1.45rem, 2.8vw, 2rem);
+      min-height: 58px;
+      height: auto;
+      padding: 8px 10px;
+      font-size: clamp(1rem, 2.2vw, 1.7rem);
       font-weight: 800;
       color: #fefefe;
       letter-spacing: -0.01em;
       cursor: pointer;
       box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.17);
       transition: opacity 120ms ease, transform 80ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.04;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
     }
 
     .buy-btn:hover:enabled {
@@ -539,14 +606,24 @@
     .sell-btn {
       border: 0;
       border-radius: 12px;
-      height: 58px;
-      font-size: clamp(1.45rem, 2.8vw, 2rem);
+      min-height: 58px;
+      height: auto;
+      padding: 8px 10px;
+      font-size: clamp(1rem, 2.2vw, 1.7rem);
       font-weight: 800;
       color: #fefefe;
       letter-spacing: -0.01em;
       cursor: pointer;
       box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.17);
       transition: opacity 120ms ease, transform 80ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.04;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
     }
 
     .sell-btn:hover:enabled {
@@ -625,6 +702,10 @@
       .timer {
         margin-left: 94px;
         padding-top: 0;
+      }
+
+      .main-layout {
+        grid-template-columns: 1fr;
       }
 
       .chart-wrap {

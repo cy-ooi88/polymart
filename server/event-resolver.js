@@ -42,8 +42,30 @@ function normalizeOutcomeName(name) {
   return String(name || "").trim().toLowerCase();
 }
 
-function findOutcomeEntry(entries, acceptedNames) {
-  return entries.find((entry) => acceptedNames.includes(normalizeOutcomeName(entry.name)));
+function isUpAlias(name) {
+  return ["up", "yes", "y", "true", "1"].includes(normalizeOutcomeName(name));
+}
+
+function isDownAlias(name) {
+  return ["down", "no", "n", "false", "0"].includes(normalizeOutcomeName(name));
+}
+
+function findOutcomeEntry(entries, matcher) {
+  return entries.find((entry) => matcher(entry?.name));
+}
+
+function defaultOutcomeLabels(slug, title) {
+  const haystack = `${slug || ""} ${title || ""}`.toLowerCase();
+  if (haystack.includes("updown") || haystack.includes("up or down")) {
+    return {
+      up: "Up",
+      down: "Down"
+    };
+  }
+  return {
+    up: "Yes",
+    down: "No"
+  };
 }
 
 function normalizeBullpenMarket(raw, slugHint = "") {
@@ -75,16 +97,17 @@ function normalizeBullpenMarket(raw, slugHint = "") {
         }))
       : [];
 
-  const upOutcome = findOutcomeEntry(outcomes, ["up", "yes"]);
-  const downOutcome = findOutcomeEntry(outcomes, ["down", "no"]);
+  const defaults = defaultOutcomeLabels(slug, root.title || root.question || raw?.title || "");
+  const upOutcome = findOutcomeEntry(outcomes, isUpAlias);
+  const downOutcome = findOutcomeEntry(outcomes, isDownAlias);
 
   return {
     source: "bullpen",
     slug,
     title: String(root.title || root.question || raw?.title || titleFromSlug(slug)),
     conditionId: root.conditionId || root.condition_id || raw?.conditionId || null,
-    upOutcomeLabel: upOutcome?.name || "Yes",
-    downOutcomeLabel: downOutcome?.name || "No",
+    upOutcomeLabel: upOutcome?.name || defaults.up,
+    downOutcomeLabel: downOutcome?.name || defaults.down,
     upTokenId: upOutcome?.tokenId || null,
     downTokenId: downOutcome?.tokenId || null,
     acceptingOrders: Boolean(root.acceptingOrders ?? root.accepting_orders ?? !root.closed),
@@ -121,9 +144,10 @@ function normalizeGammaMarket(eventData, slugHint = "") {
     tokenId: tokenIds[index] || null
   }));
 
-  const upOutcome = findOutcomeEntry(outcomeEntries, ["up", "yes"]);
-  const downOutcome = findOutcomeEntry(outcomeEntries, ["down", "no"]);
   const slug = String(eventData.slug || slugHint || "");
+  const defaults = defaultOutcomeLabels(slug, eventData.title || "");
+  const upOutcome = findOutcomeEntry(outcomeEntries, isUpAlias);
+  const downOutcome = findOutcomeEntry(outcomeEntries, isDownAlias);
   const startSec = toNumericTimestampFromSlug(slug);
   const endSec = Number.isFinite(startSec) ? startSec + FIVE_MIN_SECONDS : null;
 
@@ -132,8 +156,8 @@ function normalizeGammaMarket(eventData, slugHint = "") {
     slug,
     title: String(eventData.title || titleFromSlug(slug)),
     conditionId: market.conditionId || market.condition_id || null,
-    upOutcomeLabel: upOutcome?.name || "Up",
-    downOutcomeLabel: downOutcome?.name || "Down",
+    upOutcomeLabel: upOutcome?.name || defaults.up,
+    downOutcomeLabel: downOutcome?.name || defaults.down,
     upTokenId: upOutcome?.tokenId || null,
     downTokenId: downOutcome?.tokenId || null,
     acceptingOrders: Boolean(market.acceptingOrders ?? (!market.closed && market.active)),

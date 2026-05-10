@@ -3,6 +3,7 @@ import {
   clearBullpenSessionKey,
   getBullpenStatus,
   getCurrentMarket,
+  getPositions,
   setBullpenSessionKey,
   startBullpenLogin
 } from "./js/bullpen-api.js";
@@ -17,6 +18,122 @@ import { setStatus } from "./js/status.js";
 import { baseTimestampNowSeconds, updateCountdown } from "./js/time.js";
 import { connectBtcWebSocket } from "./js/btc-stream.js";
 import { placeBuyOrder, placeSellOrder, runApprovalFlow, runPreflightCheck } from "./trading.js";
+
+function toFiniteNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function readFirstFinite(obj, paths) {
+  for (const path of paths) {
+    let cursor = obj;
+    let validPath = true;
+    for (const key of path) {
+      if (!cursor || typeof cursor !== "object" || !(key in cursor)) {
+        validPath = false;
+        break;
+      }
+      cursor = cursor[key];
+    }
+    if (!validPath) continue;
+    const value = toFiniteNumber(cursor);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function classifyOrderStatus(order) {
+  const status = String(order?.status || order?.state || order?.orderStatus || "").trim().toLowerCase();
+  if (!status) return "open";
+  if (["pending", "new", "placed", "submitted", "partially_filled", "partially-filled", "partial"].includes(status)) {
+    return "pending";
+  }
+  if (["open", "active", "live"].includes(status)) {
+    return "open";
+  }
+  return null;
+}
+
+function extractTradingSummary(payload) {
+  const raw = payload?.raw && typeof payload.raw === "object" ? payload.raw : {};
+  const positions = Array.isArray(payload?.positions) ? payload.positions : [];
+
+  let pendingOrders = 0;
+  let openOrders = 0;
+  let totalPnl = 0;
+
+  for (const position of positions) {
+    const statusType = classifyOrderStatus(position);
+    if (statusType === "pending") pendingOrders += 1;
+    if (statusType === "open") openOrders += 1;
+
+    const pnl = readFirstFinite(position, [
+      ["totalPnl"],
+      ["pnl"],
+      ["profitLoss"],
+      ["unrealizedPnl"],
+      ["realizedPnl"],
+      ["returnUsd"]
+    ]);
+    if (pnl !== null) totalPnl += pnl;
+  }
+
+  const walletUsdc = readFirstFinite(raw, [
+    ["summary", "cash_balance"],
+    ["summary", "total_value"],
+    ["balances", "usdc"],
+    ["balance", "usdc"],
+    ["wallet", "usdc"],
+    ["usdcBalance"],
+    ["availableUsdc"],
+    ["usdc_available"],
+    ["cash"]
+  ]);
+
+  const summaryPnl =
+    readFirstFinite(raw, [["summary", "unrealized_pnl"]]) ?? 0
+    + (readFirstFinite(raw, [["summary", "realized_pnl"]]) ?? 0);
+
+  return {
+    walletUsdc,
+    pendingOrders,
+    openOrders,
+    totalPnl: totalPnl || summaryPnl
+  };
+}
+
+function renderTradingSummary(summary) {
+  dom.walletUsdcValueEl.textContent = Number.isFinite(summary.walletUsdc)
+    ? `$${formatUsd(summary.walletUsdc)}`
+    : "--";
+  dom.pendingOrdersValueEl.textContent = String(summary.pendingOrders);
+  dom.openOrdersValueEl.textContent = String(summary.openOrders);
+  dom.totalPnlValueEl.textContent = Number.isFinite(summary.totalPnl)
+    ? `${summary.totalPnl >= 0 ? "+" : ""}$${formatUsd(summary.totalPnl)}`
+    : "--";
+  dom.totalPnlValueEl.classList.remove("positive", "negative");
+  if (Number.isFinite(summary.totalPnl)) {
+    dom.totalPnlValueEl.classList.add(summary.totalPnl >= 0 ? "positive" : "negative");
+  }
+}
+
+async function refreshTradingSummary() {
+  try {
+    const positionsPayload = await getPositions();
+    renderTradingSummary(extractTradingSummary(positionsPayload));
+  } catch {
+    renderTradingSummary({
+      walletUsdc: null,
+      pendingOrders: 0,
+      openOrders: 0,
+      totalPnl: null
+    });
+  }
+}
 
 function buildGammaEventUrl(slug) {
   if (!slug) return "https://gamma-api.polymarket.com/events";
@@ -322,6 +439,7 @@ async function handleBuyUp() {
     });
 
     setStatus(`Buy Up placed successfully. Order ID: ${result.orderId || "N/A"}`, "ok");
+    await refreshTradingSummary();
   } catch (error) {
     setStatus(`Buy order failed: ${error.message}`, "err");
   } finally {
@@ -357,6 +475,7 @@ async function handleBuyDown() {
     });
 
     setStatus(`Buy Down placed successfully. Order ID: ${result.orderId || "N/A"}`, "ok");
+    await refreshTradingSummary();
   } catch (error) {
     setStatus(`Buy order failed: ${error.message}`, "err");
   } finally {
@@ -395,6 +514,7 @@ async function handleSellUp() {
       `Sell Up placed successfully. Order ID: ${result.orderId || "N/A"}${result.shares ? ` | Shares: ${result.shares}` : ""}`,
       "ok"
     );
+    await refreshTradingSummary();
   } catch (error) {
     setStatus(`Sell order failed: ${error.message}`, "err");
   } finally {
@@ -433,6 +553,7 @@ async function handleSellDown() {
       `Sell Down placed successfully. Order ID: ${result.orderId || "N/A"}${result.shares ? ` | Shares: ${result.shares}` : ""}`,
       "ok"
     );
+    await refreshTradingSummary();
   } catch (error) {
     setStatus(`Sell order failed: ${error.message}`, "err");
   } finally {
@@ -472,8 +593,10 @@ function handleOrderSizeChange() {
 
     await refreshBullpenSession(false);
     await loadEventAndStart();
+    await refreshTradingSummary();
     setInterval(refreshBuyPrices, 1500);
     setInterval(() => refreshBullpenSession(false), 15000);
+    setInterval(refreshTradingSummary, 10000);
     setInterval(maybeRollEvent, 5000);
     setInterval(updateCountdown, 1000);
   } catch (err) {
